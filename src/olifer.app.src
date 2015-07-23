@@ -1,0 +1,15 @@
+{application, olifer,
+ [
+  {description, "An Erlang LIVR implementation library"},
+  {vsn, "1"},
+  {modules, [
+             olifer
+            ]},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { olifer_app, []}},
+  {env, []}
+ ]}.
