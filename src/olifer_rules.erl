@@ -15,13 +15,18 @@
 -export([max_number/2]).
 -export([min_number/2]).
 -export([number_between/2]).
-%%STRING RULES
+%% STRING RULES
 -export([one_of/2]).
 -export([max_length/2]).
 -export([min_length/2]).
 -export([length_between/2]).
 -export([length_equal/2]).
 -export([like/2]).
+%% SPECIAL RULES
+-export([email/2]).
+%% -export([url/2]).
+%% -export([iso_date/2]).
+-export([equal_to_field/2]).
 
 %% BASIC RULES
 required(<<>>, []) ->
@@ -240,6 +245,22 @@ like(Value, Pattern) when is_binary(Value) ->
     like_impl(Value, Pattern, [unicode]);
 like(_Value, _Args) ->
     {error, ?FORMAT_ERROR}.
+
+%% SPECIAL RULES
+email(<<>> = Value, _Args) ->
+    {ok, Value};
+email(Value, []) when is_binary(Value) ->
+    Pattern = "^((?:(?:[^\"@\\.\s]+\\.?)|(?:\\.\"[^\"\s]+\"\\.))*(?:(?:\\.?\"[^\"\s]+\")|(?:[a-zA-Z0-9\\-_]+)))@[a-z0-9\\.\\-\\[\\]]+$",
+    case re:run(Value, Pattern, [caseless, anchored]) of
+        nomatch -> {error, ?WRONG_EMAIL};
+        _ -> {ok, Value}
+    end;
+email(_, _) ->
+    {error, ?FORMAT_ERROR}.
+
+equal_to_field(<<>> = Value, _Args) ->
+    {ok, Value};
+
 
 %% INTERNAL
 binary_to_int(Value) ->

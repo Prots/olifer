@@ -70,23 +70,31 @@ apply_one_rule(Input, {Rule, Arg}) ->
 process_result({ok, Input}) -> {Input, []};
 process_result({error, Error}) -> {Error, Error}.
 
-rule_to_atom(<<"required">>) ->         required;
-rule_to_atom(<<"not_empty">>) ->        not_empty;
-rule_to_atom(<<"not_empty_list">>) ->   not_empty_list;
-rule_to_atom(<<"integer">>) ->          integer;
-rule_to_atom(<<"positive_integer">>) -> positive_integer;
-rule_to_atom(<<"decimal">>) ->          decimal;
-rule_to_atom(<<"positive_decimal">>) -> positive_decimal;
-rule_to_atom(<<"max_number">>) ->       max_number;
-rule_to_atom(<<"min_number">>) ->       min_number;
-rule_to_atom(<<"number_between">>) ->   number_between;
-rule_to_atom(<<"one_of">>) ->           one_of;
-rule_to_atom(<<"max_length">>) ->       max_length;
-rule_to_atom(<<"min_length">>) ->       min_length;
-rule_to_atom(<<"length_between">>) ->   length_between;
-rule_to_atom(<<"length_equal">>) ->     length_equal;
-rule_to_atom(<<"like">>) ->             like;
-rule_to_atom(_) ->                      undefined.
+rule_to_atom(<<"required">>) ->                     required;
+rule_to_atom(<<"not_empty">>) ->                    not_empty;
+rule_to_atom(<<"not_empty_list">>) ->               not_empty_list;
+rule_to_atom(<<"integer">>) ->                      integer;
+rule_to_atom(<<"positive_integer">>) ->             positive_integer;
+rule_to_atom(<<"decimal">>) ->                      decimal;
+rule_to_atom(<<"positive_decimal">>) ->             positive_decimal;
+rule_to_atom(<<"max_number">>) ->                   max_number;
+rule_to_atom(<<"min_number">>) ->                   min_number;
+rule_to_atom(<<"number_between">>) ->               number_between;
+rule_to_atom(<<"one_of">>) ->                       one_of;
+rule_to_atom(<<"max_length">>) ->                   max_length;
+rule_to_atom(<<"min_length">>) ->                   min_length;
+rule_to_atom(<<"length_between">>) ->               length_between;
+rule_to_atom(<<"length_equal">>) ->                 length_equal;
+rule_to_atom(<<"like">>) ->                         like;
+rule_to_atom(<<"email">>) ->                        email;
+rule_to_atom(<<"url">>) ->                          url;
+rule_to_atom(<<"iso_date">>) ->                     iso_date;
+rule_to_atom(<<"equal_to_field">>) ->               equal_to_field;
+rule_to_atom(<<"nested_object">>) ->                nested_object;
+rule_to_atom(<<"list_of">>) ->                      list_of;
+rule_to_atom(<<"list_of_objects">>) ->              list_of_objects;
+rule_to_atom(<<"list_of_different_objects">>) ->    list_of_different_objects;
+rule_to_atom(_) ->                                  undefined.
 
 %% TODO this is fucking hack, but without it 'required' rule doesn't work!!!
 has_required_rule([]) ->
