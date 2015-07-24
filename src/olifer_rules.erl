@@ -42,51 +42,132 @@ not_empty_list(_Value, []) ->
     true.
 
 %% NUMBER RULES
-integer(Value, []) when is_integer(Value) ->
-    {ok, Value};
 integer(<<>> = Value, []) ->
     {ok, Value};
+integer(Value, []) when is_integer(Value) ->
+    {ok, Value};
 integer(Value, []) when is_binary(Value) ->
-    binary_to_int(Value, ?NOT_INTEGER);
-integer(Value, []) when is_list(Value) ->
-    list_to_int(Value, ?NOT_INTEGER);
+    case binary_to_int(Value) of
+        error -> {error, ?NOT_INTEGER};
+        {ok, _} -> {ok, Value}
+    end;
+integer(Value, []) when is_float(Value) ->
+    {error, ?NOT_INTEGER};
 integer(_Value, _Args) ->
-    {error, ?NOT_INTEGER}.
+    {error, ?FORMAT_ERROR}.
 
-positive_integer(Value, []) ->
-    case integer(Value, []) of
-        ?NOT_INTEGER -> {error, ?NOT_POSITIVE_INTEGER};
-        Value when Value >= 0 -> {ok, Value};
+positive_integer(<<>> = Value, []) ->
+    {ok, Value};
+positive_integer(Value, []) when is_integer(Value), Value > 0 ->
+    {ok, Value};
+positive_integer(Value, []) when is_integer(Value), Value =< 0 ->
+    {error, ?NOT_POSITIVE_INTEGER};
+positive_integer(Value, []) when is_binary(Value) ->
+    case binary_to_int(Value) of
+        error -> {error, ?NOT_POSITIVE_INTEGER};
+        {ok, IntValue} when IntValue > 0 -> {ok, Value};
         _ -> {error, ?NOT_POSITIVE_INTEGER}
-    end.
+    end;
+positive_integer(Value, []) when is_float(Value) ->
+    {error, ?NOT_POSITIVE_INTEGER};
+positive_integer(_Value, _Args) ->
+    {error, ?FORMAT_ERROR}.
 
+decimal(<<>> = Value, []) ->
+    {ok, Value};
 decimal(Value, []) when is_float(Value) ->
-    true;
+    {ok, Value};
+decimal(Value, []) when is_binary(Value) ->
+    case binary_to_flt(Value) of
+        error -> {error, ?NOT_DECIMAL};
+        {ok, _} -> {ok, Value}
+    end;
+decimal(Value, []) when is_integer(Value) ->
+    {error, ?NOT_DECIMAL};
 decimal(_Value, _Args) ->
-    false.
+    {error, ?FORMAT_ERROR}.
 
+positive_decimal(<<>> = Value, []) ->
+    {ok, Value};
 positive_decimal(Value, []) when is_float(Value), Value > 0 ->
-    true;
+    {ok, Value};
+positive_decimal(Value, []) when is_float(Value), Value =< 0 ->
+    {error, ?NOT_POSITIVE_DECIMAL};
+positive_decimal(Value, []) when is_binary(Value) ->
+    case binary_to_flt(Value) of
+        error -> {error, ?NOT_POSITIVE_DECIMAL};
+        {ok, FltValue} when FltValue > 0 -> {ok, Value};
+        _ -> {error, ?NOT_POSITIVE_DECIMAL}
+    end;
+positive_decimal(Value, []) when is_integer(Value) ->
+    {error, ?NOT_POSITIVE_DECIMAL};
 positive_decimal(_Value, _Args) ->
-    false.
+    {error, ?FORMAT_ERROR}.
 
-max_number(Value, [MaxNumber])
-    when is_number(Value), Value =< MaxNumber ->
-    true;
+max_number(<<>> = Value, _Args) ->
+    {ok, Value};
+max_number(Value, [MaxNumber]) ->
+    max_number(Value, MaxNumber);
+max_number(Value, MaxNumber) when is_number(Value), Value =< MaxNumber ->
+    {ok, Value};
+max_number(Value, _Args) when is_number(Value) ->
+    {error, ?TOO_HIGH};
+max_number(Value, MaxNumber) when is_binary(Value) ->
+    IntRes = binary_to_int(Value),
+    FltRes = binary_to_flt(Value),
+    case {IntRes, FltRes} of
+        {error, error} -> ?FORMAT_ERROR;
+        {{ok, IntValue}, _} when IntValue =< MaxNumber -> {ok, Value};
+        {_, {ok, FltValue}} when FltValue =< MaxNumber -> {ok, Value};
+        _ -> {error, ?TOO_HIGH}
+    end;
 max_number(_Value, _Args) ->
-    false.
+    {error, ?FORMAT_ERROR}.
 
-min_number(Value, [MinNumber])
-    when is_number(Value), Value >= MinNumber ->
-    true;
+min_number(<<>> = Value, _Args) ->
+    {ok, Value};
+min_number(Value, [MinNumber]) ->
+    min_number(Value, MinNumber);
+min_number(Value, MinNumber) when is_number(Value), Value >= MinNumber ->
+    {ok, Value};
+min_number(Value, _Args) when is_number(Value) ->
+    {error, ?TOO_LOW};
+min_number(Value, MinNumber) when is_binary(Value) ->
+    IntRes = binary_to_int(Value),
+    FltRes = binary_to_flt(Value),
+    case {IntRes, FltRes} of
+        {error, error} -> ?FORMAT_ERROR;
+        {{ok, IntValue}, _} when IntValue >= MinNumber -> {ok, Value};
+        {_, {ok, FltValue}} when FltValue >= MinNumber -> {ok, Value};
+        _ -> {error, ?TOO_LOW}
+    end;
 min_number(_Value, _Args) ->
-    false.
+    {error, ?FORMAT_ERROR}.
 
+number_between(<<>> = Value, _Args) ->
+    {ok, Value};
+number_between(Value, [[MinNumber, MaxNumber]]) ->
+    number_between(Value, [MinNumber, MaxNumber]);
 number_between(Value, [MinNumber, MaxNumber])
-    when is_number(Value), Value >= MinNumber, Value =< MaxNumber ->
-    true;
+        when is_number(Value), Value >= MinNumber, Value =< MaxNumber ->
+    {ok, Value};
+number_between(Value, [MinNumber, _]) when is_number(Value), Value < MinNumber ->
+    {error, ?TOO_LOW};
+number_between(Value, [_, MaxNumber]) when is_number(Value), Value > MaxNumber ->
+    {error, ?TOO_HIGH};
+number_between(Value, [MinNumber, MaxNumber]) when is_binary(Value) ->
+    IntRes = binary_to_int(Value),
+    FltRes = binary_to_flt(Value),
+    case {IntRes, FltRes} of
+        {error, error} -> ?FORMAT_ERROR;
+        {{ok, IntValue}, _} when IntValue > MaxNumber -> {error, ?TOO_HIGH};
+        {{ok, IntValue}, _} when IntValue < MinNumber -> {error, ?TOO_LOW};
+        {_, {ok, FltValue}} when FltValue > MaxNumber -> {error, ?TOO_HIGH};
+        {_, {ok, FltValue}} when FltValue < MinNumber -> {error, ?TOO_LOW};
+        _ -> {ok, Value}
+    end;
 number_between(_Value, _Args) ->
-    false.
+    {error, ?FORMAT_ERROR}.
 
 %% STRING RULES
 one_of(<<>> = Value, _Args) ->
@@ -149,24 +230,40 @@ length_equal(Value, Length) when is_binary(Value) ->
 length_equal(_Value, _Args) ->
     {error, ?FORMAT_ERROR}.
 
-like(Value, [_Pattern]) when is_list(Value) ->
-    true;
+like(<<>> = Value, _Args) ->
+    {ok, Value};
+like(Value, [Pattern]) when is_binary(Value) ->
+    like(Value, Pattern);
+like(Value, [Pattern, <<"i">>]) when is_binary(Value) ->
+    like_impl(Value, Pattern, [unicode, caseless]);
+like(Value, Pattern) when is_binary(Value) ->
+    like_impl(Value, Pattern, [unicode]);
 like(_Value, _Args) ->
     {error, ?FORMAT_ERROR}.
 
 %% INTERNAL
-binary_to_int(Value, Error) ->
+binary_to_int(Value) ->
     try
-        _ = binary_to_integer(Value),
-        {ok, Value}
+        IntValue = binary_to_integer(Value),
+        {ok, IntValue}
     catch
-        _:_ -> {error, Error}
+        _:_ -> error
     end.
 
-list_to_int(Value, Error) ->
+binary_to_flt(Value) ->
     try
-        _ = list_to_integer(Value),
-        {ok, Value}
+        FltValue = binary_to_float(Value),
+        {ok, FltValue}
     catch
-        _:_ -> {error, Error}
+        _:_ -> error
+    end.
+
+like_impl(Value, Pattern, Opts) ->
+    case re:compile(Pattern, Opts) of
+        {ok, MP} ->
+            case re:run(Value, MP) of
+                nomatch -> {error, ?WRONG_FORMAT};
+                _ -> {ok, Value}
+            end;
+        {error, _} -> {error, ?FORMAT_ERROR}
     end.

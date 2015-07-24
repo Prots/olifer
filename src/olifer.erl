@@ -62,7 +62,7 @@ apply_rules(#field{input = Input, rules = [Rule|Rest]} = Field) ->
 
 apply_one_rule(Input, Rule) when is_binary(Rule) ->
     process_result(erlang:apply(olifer_rules, rule_to_atom(Rule), [Input, []]));
-apply_one_rule(Input, [{Rule, Args}]) when is_list(Args) ->
+apply_one_rule(Input, [{Rule, Args}]) ->
     process_result(erlang:apply(olifer_rules, rule_to_atom(Rule), [Input, Args]));
 apply_one_rule(Input, {Rule, Arg}) ->
     process_result(erlang:apply(olifer_rules, rule_to_atom(Rule), [Input, Arg])).
