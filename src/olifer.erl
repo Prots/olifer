@@ -7,14 +7,14 @@
 -export([start/0, stop/0]).
 -export([rule_to_atom/1]).
 -export([decode/1]).
--export([apply_rules/1]).
+-export([apply_rules/2]).
 
 %% API
 validate(Rules, Data) ->
     RulesPropList = decode(Rules),
     DataPropList = decode(Data),
     ListOfFields = prevalidate(DataPropList, RulesPropList),
-    lists:reverse([apply_rules(Field) || Field <- ListOfFields]).
+    lists:reverse([apply_rules(Field, DataPropList) || Field <- ListOfFields]).
 
 register_rule(Data) ->
     ets:insert(?RULES_TBL, Data).
@@ -29,43 +29,43 @@ stop() ->
 
 %% 4. Exclude all fields that do not have validation rules described
 prevalidate(DataPropList, RulesPropList) ->
-    prevalidate(DataPropList, RulesPropList, []).
+    prevalidate(DataPropList, DataPropList, RulesPropList, []).
 
-prevalidate(_DataPropList, [], Acc) ->
+prevalidate(_DataPropList, _AllData, [], Acc) ->
     Acc;
-prevalidate([], [{FieldName, FieldRules}|RestRules], Acc) ->
+prevalidate([], AllData, [{FieldName, FieldRules}|RestRules], Acc) ->
     case has_required_rule(FieldRules) of
-        true -> prevalidate([], RestRules, [apply_rules(#field{name = FieldName, rules = FieldRules})|Acc]);
-        false -> prevalidate([], RestRules, Acc)
+        true -> prevalidate([], AllData, RestRules, [apply_rules(#field{name = FieldName, rules = FieldRules}, AllData)|Acc]);
+        false -> prevalidate([], AllData, RestRules, Acc)
     end;
-prevalidate([{FieldName, FieldData}|RestData], RulesPropList, Acc) ->
+prevalidate([{FieldName, FieldData}|RestData], AllData, RulesPropList, Acc) ->
     {NewAcc, RestRules} = case lists:keyfind(FieldName, 1, RulesPropList) of
         false ->
             {Acc, RulesPropList};
         {FieldName, FieldRules} ->
-            {[apply_rules(#field{name = FieldName, input = FieldData, rules = FieldRules})|Acc],
+            {[apply_rules(#field{name = FieldName, input = FieldData, rules = FieldRules}, AllData)|Acc],
                 proplists:delete(FieldName, RulesPropList)}
     end,
-    prevalidate(RestData, RestRules, NewAcc).
+    prevalidate(RestData, AllData, RestRules, NewAcc).
 
-apply_rules(#field{rules = []} = Field) ->
+apply_rules(#field{rules = []} = Field, _AllData) ->
     Field;
-apply_rules(#field{input = Input, rules = {Rule, Args}} = Field) ->
-    {Output, Errors} = apply_one_rule(Input, {Rule, Args}),
-    apply_rules(Field#field{rules = [], output = Output, errors = Errors});
-apply_rules(#field{input = Input, rules = Rule} = Field) when is_binary(Rule) ->
-    {Output, Errors} = apply_one_rule(Input, {Rule, []}),
-    apply_rules(Field#field{rules = [], output = Output, errors = Errors});
-apply_rules(#field{input = Input, rules = [Rule|Rest]} = Field) ->
-    {Output, Errors} = apply_one_rule(Input, Rule),
-    apply_rules(Field#field{rules = Rest, output = Output, errors = Errors}).
+apply_rules(#field{input = Input, rules = {Rule, Args}} = Field, AllData) ->
+    {Output, Errors} = apply_one_rule(Input, {Rule, Args}, AllData),
+    apply_rules(Field#field{rules = [], output = Output, errors = Errors}, AllData);
+apply_rules(#field{input = Input, rules = Rule} = Field, AllData) when is_binary(Rule) ->
+    {Output, Errors} = apply_one_rule(Input, {Rule, []}, AllData),
+    apply_rules(Field#field{rules = [], output = Output, errors = Errors}, AllData);
+apply_rules(#field{input = Input, rules = [Rule|Rest]} = Field, AllData) ->
+    {Output, Errors} = apply_one_rule(Input, Rule, AllData),
+    apply_rules(Field#field{rules = Rest, output = Output, errors = Errors}, AllData).
 
-apply_one_rule(Input, Rule) when is_binary(Rule) ->
-    process_result(erlang:apply(olifer_rules, rule_to_atom(Rule), [Input, []]));
-apply_one_rule(Input, [{Rule, Args}]) ->
-    process_result(erlang:apply(olifer_rules, rule_to_atom(Rule), [Input, Args]));
-apply_one_rule(Input, {Rule, Arg}) ->
-    process_result(erlang:apply(olifer_rules, rule_to_atom(Rule), [Input, Arg])).
+apply_one_rule(Input, Rule, AllData) when is_binary(Rule) ->
+    process_result(erlang:apply(olifer_rules, rule_to_atom(Rule), [Input, [], AllData]));
+apply_one_rule(Input, [{Rule, Args}], AllData) ->
+    process_result(erlang:apply(olifer_rules, rule_to_atom(Rule), [Input, Args, AllData]));
+apply_one_rule(Input, {Rule, Arg}, AllData) ->
+    process_result(erlang:apply(olifer_rules, rule_to_atom(Rule), [Input, Arg, AllData])).
 
 process_result({ok, Input}) -> {Input, []};
 process_result({error, Error}) -> {Error, Error}.
