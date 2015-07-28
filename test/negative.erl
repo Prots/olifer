@@ -12,10 +12,10 @@
 all_test() ->
     {ok, ListDir} = file:list_dir(?TEST_PATH ++ atom_to_list(?MODULE)),
     [begin
-         {Rules, Input, Output} = get_working_data(TestDir),
-         ct:print("Test name:~p~nRules: ~p,~nInput: ~p,~nOutput: ~p,~n", [TestDir, Rules, Input, Output]),
-         Result = [{Field#field.name, Field#field.errors} || Field <- olifer:validate(Rules, Input), Field#field.errors =/= []],
-         ?assertEqual(olifer:decode(Output), Result)
+         {Rules, Input, Errors} = get_working_data(TestDir),
+         ct:print("Test name:~p~nRules: ~p,~nInput: ~p,~nErrors: ~p,~n", [TestDir, Rules, Input, Errors]),
+         Result = [{Field#field.name, Field#field.errors} || Field <- olifer:validate(Input, Rules), Field#field.errors =/= []],
+         ?assertEqual(olifer:decode(Errors), Result)
      end || TestDir <- lists:sort(ListDir)].
 
 %% INTERNAL
@@ -24,5 +24,5 @@ get_working_data(TestDir) ->
     DataDir = ?TEST_PATH ++ atom_to_list(?MODULE) ++ "/" ++ TestDir,
     {ok, Rules} = file:read_file(DataDir ++ "/rules.json"),
     {ok, Input} = file:read_file(DataDir ++ "/input.json"),
-    {ok, Output} = file:read_file(DataDir ++ "/errors.json"),
-    {Rules, Input, Output}.
+    {ok, Errors} = file:read_file(DataDir ++ "/errors.json"),
+    {Rules, Input, Errors}.

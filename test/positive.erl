@@ -14,7 +14,7 @@ all_test() ->
     [begin
          {Rules, Input, Output} = get_working_data(TestDir),
          ct:print("Test name:~p~nRules: ~p,~nInput: ~p,~nOutput: ~p,~n", [TestDir, Rules, Input, Output]),
-         Result = [{Field#field.name, Field#field.output} || Field <- olifer:validate(Rules, Input)],
+         Result = [{Field#field.name, Field#field.output} || Field <- olifer:validate(Input, Rules)],
          ?assertEqual(olifer:decode(Output), Result)
      end || TestDir <- lists:sort(ListDir)].
 

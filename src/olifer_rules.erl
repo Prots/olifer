@@ -27,6 +27,9 @@
 %% -export([url/3]).
 %% -export([iso_date/3]).
 -export([equal_to_field/3]).
+-export([nested_object/3]).
+-export([list_of/3]).
+-export([list_of_objects/3]).
 
 %% BASIC RULES
 required(<<>>, [], _) ->
@@ -273,6 +276,37 @@ equal_to_field(Value, FieldName, AllData) when is_binary(Value); is_integer(Valu
 equal_to_field(_Value, _Args, _) ->
     {error, ?FORMAT_ERROR}.
 
+nested_object(<<>> = Value, _Args, _) ->
+    {ok, Value};
+nested_object(Value, Args, _AllData) when is_list(Value)->
+    FieldsList = olifer:validate(Value, Args),
+    post_processing(nested_object, FieldsList);
+nested_object(_Value, _Args, _) ->
+    {error, ?FORMAT_ERROR}.
+
+list_of(<<>> = Value, _Args, _) ->
+    {ok, Value};
+list_of(Values, [Args], AllData) when is_list(Values) ->
+    list_of(Values, Args, AllData);
+list_of(Values, Args, _) when is_list(Values) ->
+    {DataPropList, RulesPropList} = pred_processing(list_of, Values, Args),
+    FieldsList = olifer:validate(DataPropList, RulesPropList),
+    post_processing(list_of, FieldsList);
+list_of(_Value, _Args, _) ->
+    {error, ?FORMAT_ERROR}.
+
+
+list_of_objects(<<>> = Value, _Args, _) ->
+    {ok, Value};
+list_of_objects(Values, [Args], AllData) when is_list(Values) ->
+    list_of(Values, Args, AllData);
+list_of_objects(Values, Args, _) when is_list(Values) ->
+    {DataPropList, RulesPropList} = pred_processing(list_of, Values, Args),
+    FieldsList = olifer:validate(DataPropList, RulesPropList),
+    post_processing(list_of, FieldsList);
+list_of_objects(_Value, _Args, _) ->
+    {error, ?FORMAT_ERROR}.
+
 
 %% INTERNAL
 binary_to_int(Value) ->
@@ -301,6 +335,40 @@ binary_to_flt(Value) ->
             end;
         _ -> error
     end.
+
+post_processing(nested_object, FieldsList) ->
+    post_processing(nested_object, FieldsList, [], []);
+post_processing(list_of, FieldsList) ->
+    post_processing(list_of, FieldsList, [], []).
+
+post_processing(nested_object, [], AccOK, []) ->
+    Result = [{Field#field.name, Field#field.output} || Field <- AccOK],
+    {ok, lists:reverse(Result)};
+post_processing(nested_object, [], _AccOK, AccErr) ->
+    Result = [{Field#field.name, Field#field.errors} || Field <- AccErr],
+    {error, lists:reverse(Result)};
+post_processing(nested_object, [#field{errors = []} = Field|RestList], AccOK, AccErr) ->
+    post_processing(nested_object, RestList, [Field|AccOK], AccErr);
+post_processing(nested_object, [#field{errors = _Err} = Field|RestList], AccOK, AccErr) ->
+    post_processing(nested_object, RestList, AccOK, [Field|AccErr]);
+post_processing(list_of, [], AccOk, AccErr) when length(AccErr) == length(AccOk) ->
+    {ok, AccOk};
+post_processing(list_of, [], _AccOk, AccErr) ->
+    {error, AccErr};
+post_processing(list_of, [#field{output = Res, errors = []}|RestList], AccOK, AccErr) ->
+    post_processing(list_of, RestList, [Res|AccOK], [null|AccErr]);
+post_processing(list_of, [#field{errors = Err}|RestList], AccOK, AccErr) ->
+    post_processing(list_of, RestList, AccOK, [Err|AccErr]).
+
+pred_processing(list_of, Values, Args) ->
+    pred_processing(list_of, Values, Args, [], []).
+
+pred_processing(list_of, [], _, DataPropList, RulesPropList) ->
+    {DataPropList, RulesPropList};
+pred_processing(list_of, [Value|Rest], Args, DataList, RulesList) ->
+    TempFieldName = erlang:make_ref(),
+    pred_processing(list_of, Rest, Args, [{TempFieldName, Value}|DataList], [{TempFieldName, Args}|RulesList]).
+
 
 like_impl(Value, Pattern, Opts) ->
     case re:compile(Pattern, Opts) of

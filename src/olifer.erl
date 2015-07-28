@@ -8,12 +8,16 @@
 -export([rule_to_atom/1]).
 -export([decode/1]).
 -export([apply_rules/2]).
+-export([prevalidate/2]).
 
 %% API
-validate(Rules, Data) ->
+validate(Data, Rules) when is_binary(Data), is_binary(Rules) ->
     RulesPropList = decode(Rules),
     DataPropList = decode(Data),
+    validate(DataPropList, RulesPropList);
+validate(DataPropList, RulesPropList) when is_list(DataPropList), is_list(RulesPropList) ->
     ListOfFields = prevalidate(DataPropList, RulesPropList),
+%%     ct:print("ListOfFields: ~p~n", [ListOfFields]),
     lists:reverse([apply_rules(Field, DataPropList) || Field <- ListOfFields]).
 
 register_rule(Data) ->
@@ -27,15 +31,15 @@ stop() ->
 
 %% INTERNAL
 
-%% 4. Exclude all fields that do not have validation rules described
 prevalidate(DataPropList, RulesPropList) ->
     prevalidate(DataPropList, DataPropList, RulesPropList, []).
 
 prevalidate(_DataPropList, _AllData, [], Acc) ->
+%%     ct:print("Acc: ~p~n", [Acc]),
     Acc;
 prevalidate([], AllData, [{FieldName, FieldRules}|RestRules], Acc) ->
     case has_required_rule(FieldRules) of
-        true -> prevalidate([], AllData, RestRules, [apply_rules(#field{name = FieldName, rules = FieldRules}, AllData)|Acc]);
+        true -> prevalidate([], AllData, RestRules, [#field{name = FieldName, input= <<>>, rules = FieldRules}|Acc]);
         false -> prevalidate([], AllData, RestRules, Acc)
     end;
 prevalidate([{FieldName, FieldData}|RestData], AllData, RulesPropList, Acc) ->
@@ -43,12 +47,12 @@ prevalidate([{FieldName, FieldData}|RestData], AllData, RulesPropList, Acc) ->
         false ->
             {Acc, RulesPropList};
         {FieldName, FieldRules} ->
-            {[apply_rules(#field{name = FieldName, input = FieldData, rules = FieldRules}, AllData)|Acc],
-                proplists:delete(FieldName, RulesPropList)}
+            {[#field{name = FieldName, input = FieldData, rules = FieldRules}|Acc], proplists:delete(FieldName, RulesPropList)}
     end,
     prevalidate(RestData, AllData, RestRules, NewAcc).
 
 apply_rules(#field{rules = []} = Field, _AllData) ->
+%%     ct:print("Field Result: ~p~n", [Field]),
     Field;
 apply_rules(#field{input = Input, rules = {Rule, Args}} = Field, AllData) ->
     {Output, Errors} = apply_one_rule(Input, {Rule, Args}, AllData),
@@ -57,8 +61,11 @@ apply_rules(#field{input = Input, rules = Rule} = Field, AllData) when is_binary
     {Output, Errors} = apply_one_rule(Input, {Rule, []}, AllData),
     apply_rules(Field#field{rules = [], output = Output, errors = Errors}, AllData);
 apply_rules(#field{input = Input, rules = [Rule|Rest]} = Field, AllData) ->
-    {Output, Errors} = apply_one_rule(Input, Rule, AllData),
-    apply_rules(Field#field{rules = Rest, output = Output, errors = Errors}, AllData).
+%%     ct:print("Field intermediate: ~p~n", [Field]),
+    case apply_one_rule(Input, Rule, AllData) of
+        {Output, []} -> apply_rules(Field#field{rules = Rest, output = Output, errors = []}, AllData);
+        {Error, Error} -> apply_rules(Field#field{rules = [], output = Error, errors = Error}, AllData)
+    end.
 
 apply_one_rule(Input, Rule, AllData) when is_binary(Rule) ->
     process_result(erlang:apply(olifer_rules, rule_to_atom(Rule), [Input, [], AllData]));
