@@ -24,12 +24,20 @@
 -export([like/3]).
 %% SPECIAL RULES
 -export([email/3]).
-%% -export([url/3]).
-%% -export([iso_date/3]).
+-export([url/3]).
+-export([iso_date/3]).
 -export([equal_to_field/3]).
+%% HELPER RULES
 -export([nested_object/3]).
 -export([list_of/3]).
 -export([list_of_objects/3]).
+-export([list_of_different_objects/3]).
+%% FILTER RULES
+-export([trim/3]).
+-export([to_uc/3]).
+-export([to_lc/3]).
+-export([remove/3]).
+-export([leave_only/3]).
 
 %% BASIC RULES
 required(<<>>, [], _) ->
@@ -46,8 +54,16 @@ not_empty(<<>>, [], _) ->
 not_empty(Value, [], _) ->
     {ok, Value}.
 
-not_empty_list(_Value, [], _) ->
-    true.
+not_empty_list(<<>>, _Args, _) ->
+    {error, ?CANNOT_BE_EMPTY};
+not_empty_list([], _Args, _) ->
+    {error, ?CANNOT_BE_EMPTY};
+not_empty_list([{}], [], _) ->
+    {error, ?WRONG_FORMAT};
+not_empty_list(Value, [], _) when is_list(Value) ->
+    {ok, Value};
+not_empty_list(_Value, _Args, _) ->
+    {error, ?FORMAT_ERROR}.
 
 %% NUMBER RULES
 integer(<<>> = Value, [], _) ->
@@ -263,6 +279,27 @@ email(Value, [], _) when is_binary(Value) ->
 email(_, _, _) ->
     {error, ?FORMAT_ERROR}.
 
+url(<<>> = Value, _Args, _) ->
+    {ok, Value};
+url(Value, [], _) when is_binary(Value) ->
+    case http_uri:parse(binary_to_list(Value)) of
+        {ok, ParsedUrl} -> check_url_details(ParsedUrl, Value);
+        {error, _} -> {error, ?WRONG_URL}
+    end;
+url(_, _, _) ->
+    {error, ?FORMAT_ERROR}.
+
+iso_date(<<>> = Value, _Args, _) ->
+    {ok, Value};
+iso_date(Value, [], _) when is_binary(Value) ->
+    case binary:split(Value, <<"-">>, [global]) of
+        [_, _, _] = DateBin -> check_date(DateBin, Value);
+        _ -> {error, ?WRONG_DATE}
+    end;
+iso_date(_, _, _) ->
+    {error, ?FORMAT_ERROR}.
+
+
 equal_to_field(<<>> = Value, _Args, _) ->
     {ok, Value};
 equal_to_field(Value, [FieldName], AllData) when is_binary(Value); is_integer(Value); is_float(Value) ->
@@ -276,6 +313,7 @@ equal_to_field(Value, FieldName, AllData) when is_binary(Value); is_integer(Valu
 equal_to_field(_Value, _Args, _) ->
     {error, ?FORMAT_ERROR}.
 
+%% HELPER RULES
 nested_object(<<>> = Value, _Args, _) ->
     {ok, Value};
 nested_object(Value, Args, _AllData) when is_list(Value)->
@@ -295,20 +333,62 @@ list_of(Values, Args, _) when is_list(Values) ->
 list_of(_Value, _Args, _) ->
     {error, ?FORMAT_ERROR}.
 
-
 list_of_objects(<<>> = Value, _Args, _) ->
     {ok, Value};
 list_of_objects(Values, [Args], AllData) when is_list(Values) ->
     list_of(Values, Args, AllData);
 list_of_objects(Values, Args, _) when is_list(Values) ->
-    {DataPropList, RulesPropList} = pred_processing(list_of, Values, Args),
-    FieldsList = olifer:validate(DataPropList, RulesPropList),
-    post_processing(list_of, FieldsList);
+    ListOfObjects = pred_processing(list_of_objects, Values, Args, []),
+    ObjFieldsList = [olifer:validate(DataPropList, RulesPropList) || {DataPropList, RulesPropList} <- ListOfObjects],
+    post_processing(list_of_objects, ObjFieldsList, [], []);
 list_of_objects(_Value, _Args, _) ->
     {error, ?FORMAT_ERROR}.
 
+list_of_different_objects(<<>> = Value, _Args, _) ->
+    {ok, Value};
+list_of_different_objects(Values, [Args], AllData) when is_list(Values) ->
+    list_of(Values, Args, AllData);
+list_of_different_objects(Values, Args, _) when is_list(Values) ->
+    ListOfObjects = pred_processing(list_of_different_objects, Values, Args, []),
+    ObjFieldsList = [olifer:validate(DataPropList, RulesPropList) || {DataPropList, RulesPropList} <- ListOfObjects],
+    Res = post_processing(list_of_objects, ObjFieldsList, [], []),
+    Res;
+list_of_different_objects(_Value, _Args, _) ->
+    {error, ?FORMAT_ERROR}.
+
+%% FILTER RULES
+trim(Value, [], _) when is_binary(Value) ->
+    {filter, bstring:trim(Value)};
+trim(Value, [], _) ->
+    {filter, Value}.
+
+to_lc(Value, [], _) when is_binary(Value) ->
+    {filter, bstring:to_lower(Value)};
+to_lc(Value, [], _) ->
+    {filter, Value}.
+
+to_uc(Value, [], _) when is_binary(Value) ->
+    {filter, bstring:to_upper(Value)};
+to_uc(Value, [], _) ->
+    {filter, Value}.
+
+remove(Value, [Pattern], AllData) ->
+    remove(Value, Pattern, AllData);
+remove(Value, Pattern, _) when is_binary(Value), is_binary(Pattern) ->
+
+    NewValue = bstring:split_global(Value, Pattern),
+    ct:print("Value: ~p, pattern: ~p, NewValue: ~p~n", [Value, Pattern, NewValue]),
+    {filter, NewValue};
+remove(Value, _, _) ->
+    {filter, Value}.
+
+leave_only(Value, _Args, _) ->
+    {filter, Value}.
+
 
 %% INTERNAL
+remove_impl(Value, )
+
 binary_to_int(Value) ->
     try
         IntValue = binary_to_integer(Value),
@@ -336,6 +416,30 @@ binary_to_flt(Value) ->
         _ -> error
     end.
 
+pred_processing(list_of, Values, Args) ->
+    pred_processing(list_of, Values, Args, [], []).
+
+pred_processing(list_of, [], _, DataPropList, RulesPropList) ->
+    {DataPropList, RulesPropList};
+pred_processing(list_of, [Value|Rest], Args, DataList, RulesList) ->
+    TempFieldName = erlang:make_ref(),
+    pred_processing(list_of, Rest, Args, [{TempFieldName, Value}|DataList], [{TempFieldName, Args}|RulesList]).
+
+pred_processing(list_of_objects, [], _, Acc) ->
+    Acc;
+pred_processing(list_of_objects, [Value|Rest], Args, Acc) ->
+    pred_processing(list_of_objects, Rest, Args, [{Value, Args}|Acc]);
+
+pred_processing(list_of_different_objects, [], _, Acc) ->
+    Acc;
+pred_processing(list_of_different_objects, [Object|Rest], [FieldType, TypeRules] = Args, Acc) when is_list(Object) ->
+    ObjectType = proplists:get_value(FieldType, Object),
+    RulesPropList = proplists:get_value(ObjectType, TypeRules),
+    pred_processing(list_of_different_objects, Rest, Args, [{Object, RulesPropList}|Acc]);
+pred_processing(list_of_different_objects, [Object|Rest], [_FieldType, TypeRules] = Args, Acc)  ->
+    RulesPropList = proplists:get_value(undefined, TypeRules),
+    pred_processing(list_of_different_objects, Rest, Args, [{Object, RulesPropList}|Acc]).
+
 post_processing(nested_object, FieldsList) ->
     post_processing(nested_object, FieldsList, [], []);
 post_processing(list_of, FieldsList) ->
@@ -358,17 +462,29 @@ post_processing(list_of, [], _AccOk, AccErr) ->
 post_processing(list_of, [#field{output = Res, errors = []}|RestList], AccOK, AccErr) ->
     post_processing(list_of, RestList, [Res|AccOK], [null|AccErr]);
 post_processing(list_of, [#field{errors = Err}|RestList], AccOK, AccErr) ->
-    post_processing(list_of, RestList, AccOK, [Err|AccErr]).
+    post_processing(list_of, RestList, AccOK, [Err|AccErr]);
 
-pred_processing(list_of, Values, Args) ->
-    pred_processing(list_of, Values, Args, [], []).
+post_processing(list_of_objects, [], AccOk, AccErr) when length(AccErr) == length(AccOk) ->
+    {ok, AccOk};
+post_processing(list_of_objects, [], _AccOk, AccErr) ->
+    {error, AccErr};
+post_processing(list_of_objects, [Object|RestList], AccOk, AccErr) ->
+    case  object_processing(Object, [], []) of
+        {ok, Res} -> post_processing(list_of_objects, RestList, [Res|AccOk], [null|AccErr]);
+        {error, [?FORMAT_ERROR]} -> post_processing(list_of_objects, RestList, AccOk, [?FORMAT_ERROR|AccErr]);
+        {error, Res} -> post_processing(list_of_objects, RestList, AccOk, [Res|AccErr])
+    end.
 
-pred_processing(list_of, [], _, DataPropList, RulesPropList) ->
-    {DataPropList, RulesPropList};
-pred_processing(list_of, [Value|Rest], Args, DataList, RulesList) ->
-    TempFieldName = erlang:make_ref(),
-    pred_processing(list_of, Rest, Args, [{TempFieldName, Value}|DataList], [{TempFieldName, Args}|RulesList]).
-
+object_processing([], AccOk, []) ->
+    {ok, lists:reverse(AccOk)};
+object_processing([], _, AccErr) ->
+    {error, lists:reverse(AccErr)};
+object_processing([#field{name = Name, output = Output, errors = []}|Rest], AccOk, AccErr) ->
+    object_processing(Rest, [{Name, Output}|AccOk], AccErr);
+object_processing([#field{errors = ?FORMAT_ERROR}|Rest], AccOk, AccErr) ->
+    object_processing(Rest, AccOk, [?FORMAT_ERROR|AccErr]);
+object_processing([#field{name = Name, errors = Error}|Rest], AccOk, AccErr) ->
+    object_processing(Rest, AccOk, [{Name, Error}|AccErr]).
 
 like_impl(Value, Pattern, Opts) ->
     case re:compile(Pattern, Opts) of
@@ -378,4 +494,22 @@ like_impl(Value, Pattern, Opts) ->
                 _ -> {ok, Value}
             end;
         {error, _} -> {error, ?FORMAT_ERROR}
+    end.
+
+check_url_details({http, _UserInfo, _Host, _Port, _Path, _Query}, Value) ->
+    {ok, Value};
+check_url_details({https, _UserInfo, _Host, _Port, _Path, _Query}, Value) ->
+    {ok, Value};
+check_url_details(_, _) ->
+    {error, ?WRONG_URL}.
+
+check_date(DateBin, Value) ->
+    case [binary_to_int(Bin)|| Bin <- DateBin] of
+        [{ok, Year}, {ok, Month}, {ok, Day}] ->
+            case calendar:valid_date({Year, Month, Day}) of
+                true -> {ok, Value};
+                _ -> {error, ?WRONG_DATE}
+            end;
+        _ ->
+            {error, ?WRONG_DATE}
     end.

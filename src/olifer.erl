@@ -4,7 +4,6 @@
 
 -export([validate/2]).
 -export([register_rule/1]).
--export([start/0, stop/0]).
 -export([rule_to_atom/1]).
 -export([decode/1]).
 -export([apply_rules/2]).
@@ -17,17 +16,12 @@ validate(Data, Rules) when is_binary(Data), is_binary(Rules) ->
     validate(DataPropList, RulesPropList);
 validate(DataPropList, RulesPropList) when is_list(DataPropList), is_list(RulesPropList) ->
     ListOfFields = prevalidate(DataPropList, RulesPropList),
-%%     ct:print("ListOfFields: ~p~n", [ListOfFields]),
-    lists:reverse([apply_rules(Field, DataPropList) || Field <- ListOfFields]).
+    lists:reverse([apply_rules(Field, DataPropList) || Field <- ListOfFields]);
+validate(Data, Rules) ->
+    [#field{name = Data, input = Data, rules = Rules, output = ?FORMAT_ERROR, errors = ?FORMAT_ERROR}].
 
 register_rule(Data) ->
     ets:insert(?RULES_TBL, Data).
-
-start() ->
-    start(?MODULE).
-
-stop() ->
-    application:stop(?MODULE).
 
 %% INTERNAL
 
@@ -38,7 +32,7 @@ prevalidate(_DataPropList, _AllData, [], Acc) ->
 %%     ct:print("Acc: ~p~n", [Acc]),
     Acc;
 prevalidate([], AllData, [{FieldName, FieldRules}|RestRules], Acc) ->
-    case has_required_rule(FieldRules) of
+    case has_spec_rule(FieldRules) of
         true -> prevalidate([], AllData, RestRules, [#field{name = FieldName, input= <<>>, rules = FieldRules}|Acc]);
         false -> prevalidate([], AllData, RestRules, Acc)
     end;
@@ -55,27 +49,28 @@ apply_rules(#field{rules = []} = Field, _AllData) ->
 %%     ct:print("Field Result: ~p~n", [Field]),
     Field;
 apply_rules(#field{input = Input, rules = {Rule, Args}} = Field, AllData) ->
-    {Output, Errors} = apply_one_rule(Input, {Rule, Args}, AllData),
-    apply_rules(Field#field{rules = [], output = Output, errors = Errors}, AllData);
+    {NewInp, Output, Errors} = apply_one_rule(Input, {Rule, Args}, AllData),
+    apply_rules(Field#field{input = NewInp, rules = [], output = Output, errors = Errors}, AllData);
 apply_rules(#field{input = Input, rules = Rule} = Field, AllData) when is_binary(Rule) ->
-    {Output, Errors} = apply_one_rule(Input, {Rule, []}, AllData),
-    apply_rules(Field#field{rules = [], output = Output, errors = Errors}, AllData);
+    {NewInp, Output, Errors} = apply_one_rule(Input, {Rule, []}, AllData),
+    apply_rules(Field#field{input = NewInp, rules = [], output = Output, errors = Errors}, AllData);
 apply_rules(#field{input = Input, rules = [Rule|Rest]} = Field, AllData) ->
 %%     ct:print("Field intermediate: ~p~n", [Field]),
     case apply_one_rule(Input, Rule, AllData) of
-        {Output, []} -> apply_rules(Field#field{rules = Rest, output = Output, errors = []}, AllData);
-        {Error, Error} -> apply_rules(Field#field{rules = [], output = Error, errors = Error}, AllData)
+        {NewInp, Output, []} -> apply_rules(Field#field{rules = Rest, input = NewInp, output = Output, errors = []}, AllData);
+        {_, Error, Error} -> apply_rules(Field#field{rules = [], output = Error, errors = Error}, AllData)
     end.
 
 apply_one_rule(Input, Rule, AllData) when is_binary(Rule) ->
-    process_result(erlang:apply(olifer_rules, rule_to_atom(Rule), [Input, [], AllData]));
+    process_result(erlang:apply(olifer_rules, rule_to_atom(Rule), [Input, [], AllData]), Input);
 apply_one_rule(Input, [{Rule, Args}], AllData) ->
-    process_result(erlang:apply(olifer_rules, rule_to_atom(Rule), [Input, Args, AllData]));
+    process_result(erlang:apply(olifer_rules, rule_to_atom(Rule), [Input, Args, AllData]), Input);
 apply_one_rule(Input, {Rule, Arg}, AllData) ->
-    process_result(erlang:apply(olifer_rules, rule_to_atom(Rule), [Input, Arg, AllData])).
+    process_result(erlang:apply(olifer_rules, rule_to_atom(Rule), [Input, Arg, AllData]), Input).
 
-process_result({ok, Input}) -> {Input, []};
-process_result({error, Error}) -> {Error, Error}.
+process_result({filter, Output}, _) -> {Output, Output, []};
+process_result({ok, Output}, Input) -> {Input, Output, []};
+process_result({error, Error}, Input) -> {Input, Error, Error}.
 
 rule_to_atom(<<"required">>) ->                     required;
 rule_to_atom(<<"not_empty">>) ->                    not_empty;
@@ -101,43 +96,44 @@ rule_to_atom(<<"nested_object">>) ->                nested_object;
 rule_to_atom(<<"list_of">>) ->                      list_of;
 rule_to_atom(<<"list_of_objects">>) ->              list_of_objects;
 rule_to_atom(<<"list_of_different_objects">>) ->    list_of_different_objects;
+rule_to_atom(<<"trim">>) ->                         trim;
+rule_to_atom(<<"to_lc">>) ->                        to_lc;
+rule_to_atom(<<"to_uc">>) ->                        to_uc;
+rule_to_atom(<<"remove">>) ->                       remove;
+rule_to_atom(<<"leave_only">>) ->                   leave_only;
 rule_to_atom(_) ->                                  undefined.
 
 %% TODO this is fucking hack, but without it 'required' rule doesn't work!!!
-has_required_rule([]) ->
+
+has_spec_rule(FieldRules) ->
+    has_spec_rule(FieldRules, ?SPEC_RULES).
+
+has_spec_rule(_FieldRules, []) ->
     false;
-has_required_rule([<<"required">>|_Rest]) ->
+has_spec_rule(FieldRules, [Type|RestTypes]) ->
+    case has_rule(FieldRules, Type) of
+        true -> true;
+        _ -> has_spec_rule(FieldRules, RestTypes)
+    end.
+
+has_rule(Type, Type) ->
     true;
-has_required_rule([{<<"required">>, _}|_Rest]) ->
+has_rule([], _Type) ->
+    false;
+has_rule([Type|_Rest], Type) ->
     true;
-has_required_rule([[{<<"required">>, _}]|_Rest]) ->
+has_rule([{Type, _}|_Rest], Type) ->
     true;
-has_required_rule([_|Rest]) ->
-    has_required_rule(Rest).
+has_rule([[{Type, _}]|_Rest], Type) ->
+    true;
+has_rule([_|Rest], Type) ->
+    has_rule(Rest, Type);
+has_rule(_, _) ->
+    false.
 
 decode(BinaryData) ->
     try
         jsx:decode(BinaryData)
     catch
         _:_ -> json_parsing_error
-    end.
-
-start(AppName) ->
-    F = fun({App, _, _}) -> App end,
-    RunningApps = lists:map(F, application:which_applications()),
-    ok = load(AppName),
-    {ok, Dependencies} = application:get_key(AppName, applications),
-    [begin
-         ok = start(A)
-     end || A <- Dependencies, not lists:member(A, RunningApps)],
-    ok = application:start(AppName).
-
-load(AppName) ->
-    F = fun({App, _, _}) -> App end,
-    LoadedApps = lists:map(F, application:loaded_applications()),
-    case lists:member(AppName, LoadedApps) of
-        true ->
-            ok;
-        false ->
-            ok = application:load(AppName)
     end.

@@ -4,6 +4,8 @@
 
 -define(RULES_TBL, olifer_rules_table).
 
+-define(SPEC_RULES, [<<"required">>, <<"not_empty_list">>]).
+
 %% BASIC RULES ERRORS
 -define(REQUIRED, <<"REQUIRED">>).
 -define(CANNOT_BE_EMPTY, <<"CANNOT_BE_EMPTY">>).
