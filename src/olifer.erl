@@ -29,7 +29,6 @@ prevalidate(DataPropList, RulesPropList) ->
     prevalidate(DataPropList, DataPropList, RulesPropList, []).
 
 prevalidate(_DataPropList, _AllData, [], Acc) ->
-%%     ct:print("Acc: ~p~n", [Acc]),
     Acc;
 prevalidate([], AllData, [{FieldName, FieldRules}|RestRules], Acc) ->
     case has_spec_rule(FieldRules) of
@@ -46,7 +45,6 @@ prevalidate([{FieldName, FieldData}|RestData], AllData, RulesPropList, Acc) ->
     prevalidate(RestData, AllData, RestRules, NewAcc).
 
 apply_rules(#field{rules = []} = Field, _AllData) ->
-%%     ct:print("Field Result: ~p~n", [Field]),
     Field;
 apply_rules(#field{input = Input, rules = {Rule, Args}} = Field, AllData) ->
     {NewInp, Output, Errors} = apply_one_rule(Input, {Rule, Args}, AllData),
@@ -55,7 +53,6 @@ apply_rules(#field{input = Input, rules = Rule} = Field, AllData) when is_binary
     {NewInp, Output, Errors} = apply_one_rule(Input, {Rule, []}, AllData),
     apply_rules(Field#field{input = NewInp, rules = [], output = Output, errors = Errors}, AllData);
 apply_rules(#field{input = Input, rules = [Rule|Rest]} = Field, AllData) ->
-%%     ct:print("Field intermediate: ~p~n", [Field]),
     case apply_one_rule(Input, Rule, AllData) of
         {NewInp, Output, []} -> apply_rules(Field#field{rules = Rest, input = NewInp, output = Output, errors = []}, AllData);
         {_, Error, Error} -> apply_rules(Field#field{rules = [], output = Error, errors = Error}, AllData)
