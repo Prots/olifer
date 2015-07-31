@@ -279,6 +279,7 @@ email(Value, [], _) when is_binary(Value) ->
 email(_, _, _) ->
     {error, ?FORMAT_ERROR}.
 
+%%TODO not validate URLs with special symbols, like '_'
 url(<<>> = Value, _Args, _) ->
     {ok, Value};
 url(Value, [], _) when is_binary(Value) ->

@@ -19,5 +19,6 @@ stop(_State) ->
 %% Internal
 
 init() ->
-    _ = ets:new(?RULES_TBL, [public, set, named_table, {write_concurrency, true}]),
+    _ = ets:new(?RULES_TBL, [public, set, named_table, {read_concurrency, true}]),
+    _ = ets:new(?ALIASES_TBL, [public, set, named_table, {read_concurrency, true}]),
     ok.

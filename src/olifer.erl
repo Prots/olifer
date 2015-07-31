@@ -2,8 +2,10 @@
 
 -include("olifer.hrl").
 
+-export([start/0, stop/0]).
 -export([validate/2]).
 -export([register_rule/1]).
+-export([register_aliased_rule/1]).
 -export([rule_to_atom/1]).
 -export([decode/1]).
 -export([apply_rules/2]).
@@ -21,9 +23,35 @@ validate(Data, Rules) ->
     [#field{name = Data, input = Data, rules = Rules, output = ?FORMAT_ERROR, errors = ?FORMAT_ERROR}].
 
 register_rule(Data) ->
-    ets:insert(?RULES_TBL, Data).
+    true = ets:insert(?RULES_TBL, Data),
+    ok.
+
+register_aliased_rule(AliasesJson) ->
+    Aliases = decode(AliasesJson),
+    register_aliases(Aliases).
+
+start() ->
+    start(?MODULE).
+
+stop() ->
+    application:stop(?MODULE).
 
 %% INTERNAL
+register_aliases([]) ->
+    ok;
+register_aliases([Alias|Rest]) ->
+%%     ct:print("AliasPropList: ~p~n", [Alias]),
+    Name = proplists:get_value(<<"name">>, Alias),
+    Rules = proplists:get_value(<<"rules">>, Alias),
+    ErrorCode = proplists:get_value(<<"error">>, Alias),
+    true = ets:insert(?ALIASES_TBL, {Name, Rules, ErrorCode}),
+    register_aliases(Rest).
+
+lookup_alias(Name) ->
+    case ets:lookup(?ALIASES_TBL, Name) of
+        [] -> undefined;
+        [{Name, Rules, Error}|_] -> {Name, Rules, Error}
+    end.
 
 prevalidate(DataPropList, RulesPropList) ->
     prevalidate(DataPropList, DataPropList, RulesPropList, []).
@@ -46,25 +74,48 @@ prevalidate([{FieldName, FieldData}|RestData], AllData, RulesPropList, Acc) ->
 
 apply_rules(#field{rules = []} = Field, _AllData) ->
     Field;
-apply_rules(#field{input = Input, rules = {Rule, Args}} = Field, AllData) ->
-    {NewInp, Output, Errors} = apply_one_rule(Input, {Rule, Args}, AllData),
+apply_rules(#field{rules = {Rule, Args}} = Field, AllData) ->
+    {NewInp, Output, Errors} = apply_one_rule(Field, {Rule, Args}, AllData),
     apply_rules(Field#field{input = NewInp, rules = [], output = Output, errors = Errors}, AllData);
-apply_rules(#field{input = Input, rules = Rule} = Field, AllData) when is_binary(Rule) ->
-    {NewInp, Output, Errors} = apply_one_rule(Input, {Rule, []}, AllData),
+apply_rules(#field{rules = Rule} = Field, AllData) when is_binary(Rule) ->
+    {NewInp, Output, Errors} = apply_one_rule(Field, {Rule, []}, AllData),
     apply_rules(Field#field{input = NewInp, rules = [], output = Output, errors = Errors}, AllData);
-apply_rules(#field{input = Input, rules = [Rule|Rest]} = Field, AllData) ->
-    case apply_one_rule(Input, Rule, AllData) of
+apply_rules(#field{rules = [Rule|Rest]} = Field, AllData) ->
+    case apply_one_rule(Field, Rule, AllData) of
         {NewInp, Output, []} -> apply_rules(Field#field{rules = Rest, input = NewInp, output = Output, errors = []}, AllData);
         {_, Error, Error} -> apply_rules(Field#field{rules = [], output = Error, errors = Error}, AllData)
     end.
 
-apply_one_rule(Input, Rule, AllData) when is_binary(Rule) ->
-    process_result(erlang:apply(olifer_rules, rule_to_atom(Rule), [Input, [], AllData]), Input);
-apply_one_rule(Input, [{Rule, Args}], AllData) ->
-    process_result(erlang:apply(olifer_rules, rule_to_atom(Rule), [Input, Args, AllData]), Input);
-apply_one_rule(Input, {Rule, Arg}, AllData) ->
-    process_result(erlang:apply(olifer_rules, rule_to_atom(Rule), [Input, Arg, AllData]), Input).
+apply_one_rule(Field, Rule, AllData) when is_binary(Rule) ->
+    apply_one_rule(Field, Rule, [], AllData);
+apply_one_rule(Field, [{Rule, Args}], AllData) ->
+    apply_one_rule(Field, Rule, Args, AllData);
+apply_one_rule(Field, {Rule, Args}, AllData) ->
+    apply_one_rule(Field, Rule, Args, AllData).
 
+apply_one_rule(Field, Rule, Args, AllData) ->
+    case rule_to_atom(Rule) of
+        undefined -> process_result(apply_user_rules(Field, Rule, Args, AllData), Field#field.input);
+        RuleAtom ->  process_result(erlang:apply(olifer_rules, RuleAtom, [Field#field.input, Args, AllData]), Field#field.input)
+    end.
+
+apply_user_rules(Field, RuleName, _Args, AllData) ->
+    case lookup_alias(RuleName) of
+        undefined ->
+            undefined;
+        {RuleName, Rules, undefined} ->
+            case apply_rules(Field#field{rules = Rules, errors = []}, AllData) of
+                #field{errors = []} = NewField -> {ok, NewField#field.output};
+                NewField -> {error, NewField#field.errors}
+            end;
+        {RuleName, Rules, Error} ->
+            case apply_rules(Field#field{rules = Rules, errors = []}, AllData) of
+                #field{errors = []} = NewField -> {ok, NewField#field.output};
+                _ -> {error, Error}
+            end
+    end.
+
+process_result(undefined, Input) -> {Input, Input, []};
 process_result({filter, Output}, _) -> {Output, Output, []};
 process_result({ok, Output}, Input) -> {Input, Output, []};
 process_result({error, Error}, Input) -> {Input, Error, Error}.
@@ -100,7 +151,7 @@ rule_to_atom(<<"remove">>) ->                       remove;
 rule_to_atom(<<"leave_only">>) ->                   leave_only;
 rule_to_atom(_) ->                                  undefined.
 
-%% TODO this is fucking hack, but without it 'required' rule doesn't work!!!
+%% TODO this is fucking hack, but without it 'required' and 'not_empty_list' rules doesn't work!!!
 
 has_spec_rule(FieldRules) ->
     has_spec_rule(FieldRules, ?SPEC_RULES).
@@ -133,4 +184,24 @@ decode(BinaryData) ->
         jsx:decode(BinaryData)
     catch
         _:_ -> json_parsing_error
+    end.
+
+start(AppName) ->
+    F = fun({App, _, _}) -> App end,
+    RunningApps = lists:map(F, application:which_applications()),
+    ok = load(AppName),
+    {ok, Dependencies} = application:get_key(AppName, applications),
+    [begin
+         ok = start(A)
+     end || A <- Dependencies, not lists:member(A, RunningApps)],
+    ok = application:start(AppName).
+
+load(AppName) ->
+    F = fun({App, _, _}) -> App end,
+    LoadedApps = lists:map(F, application:loaded_applications()),
+    case lists:member(AppName, LoadedApps) of
+        true ->
+            ok;
+        false ->
+            ok = application:load(AppName)
     end.

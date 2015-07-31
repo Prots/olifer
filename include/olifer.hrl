@@ -2,7 +2,8 @@
 
 -record(field, {name, input, rules, output, errors}).
 
--define(RULES_TBL, olifer_rules_table).
+-define(RULES_TBL, olifer_user_rules).
+-define(ALIASES_TBL, olifer_user_aliases).
 
 -define(SPEC_RULES, [<<"required">>, <<"not_empty_list">>]).
 
