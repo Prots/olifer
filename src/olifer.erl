@@ -97,7 +97,7 @@ apply_one_rule(Field, {Rule, Args}, AllData) ->
 apply_one_rule(Field, Rule, Args, AllData) ->
     case rule_to_atom(Rule) of
         undefined -> process_result(apply_user_rules(Field, Rule, Args, AllData), Field#field.input);
-        RuleAtom ->  process_result(erlang:apply(olifer_rules, RuleAtom, [Field#field.input, Args, AllData]), Field#field.input)
+        {Module, Function} ->  process_result(erlang:apply(Module, Function, [Field#field.input, Args, AllData]), Field#field.input)
     end.
 
 apply_user_rules(Field, Rule, Args, AllData) ->
@@ -135,35 +135,35 @@ process_result({filter, Output}, _) -> {Output, Output, []};
 process_result({ok, Output}, Input) -> {Input, Output, []};
 process_result({error, Error}, Input) -> {Input, Error, Error}.
 
-rule_to_atom(<<"required">>) ->                     required;
-rule_to_atom(<<"not_empty">>) ->                    not_empty;
-rule_to_atom(<<"not_empty_list">>) ->               not_empty_list;
-rule_to_atom(<<"integer">>) ->                      integer;
-rule_to_atom(<<"positive_integer">>) ->             positive_integer;
-rule_to_atom(<<"decimal">>) ->                      decimal;
-rule_to_atom(<<"positive_decimal">>) ->             positive_decimal;
-rule_to_atom(<<"max_number">>) ->                   max_number;
-rule_to_atom(<<"min_number">>) ->                   min_number;
-rule_to_atom(<<"number_between">>) ->               number_between;
-rule_to_atom(<<"one_of">>) ->                       one_of;
-rule_to_atom(<<"max_length">>) ->                   max_length;
-rule_to_atom(<<"min_length">>) ->                   min_length;
-rule_to_atom(<<"length_between">>) ->               length_between;
-rule_to_atom(<<"length_equal">>) ->                 length_equal;
-rule_to_atom(<<"like">>) ->                         like;
-rule_to_atom(<<"email">>) ->                        email;
-rule_to_atom(<<"url">>) ->                          url;
-rule_to_atom(<<"iso_date">>) ->                     iso_date;
-rule_to_atom(<<"equal_to_field">>) ->               equal_to_field;
-rule_to_atom(<<"nested_object">>) ->                nested_object;
-rule_to_atom(<<"list_of">>) ->                      list_of;
-rule_to_atom(<<"list_of_objects">>) ->              list_of_objects;
-rule_to_atom(<<"list_of_different_objects">>) ->    list_of_different_objects;
-rule_to_atom(<<"trim">>) ->                         trim;
-rule_to_atom(<<"to_lc">>) ->                        to_lc;
-rule_to_atom(<<"to_uc">>) ->                        to_uc;
-rule_to_atom(<<"remove">>) ->                       remove;
-rule_to_atom(<<"leave_only">>) ->                   leave_only;
+rule_to_atom(<<"required">>) ->                     {common, required};
+rule_to_atom(<<"not_empty">>) ->                    {common, not_empty};
+rule_to_atom(<<"not_empty_list">>) ->               {common, not_empty_list};
+rule_to_atom(<<"integer">>) ->                      {numeric, integer};
+rule_to_atom(<<"positive_integer">>) ->             {numeric, positive_integer};
+rule_to_atom(<<"decimal">>) ->                      {numeric, decimal};
+rule_to_atom(<<"positive_decimal">>) ->             {numeric, positive_decimal};
+rule_to_atom(<<"max_number">>) ->                   {numeric, max_number};
+rule_to_atom(<<"min_number">>) ->                   {numeric, min_number};
+rule_to_atom(<<"number_between">>) ->               {numeric, number_between};
+rule_to_atom(<<"one_of">>) ->                       {strings, one_of};
+rule_to_atom(<<"max_length">>) ->                   {strings, max_length};
+rule_to_atom(<<"min_length">>) ->                   {strings, min_length};
+rule_to_atom(<<"length_between">>) ->               {strings, length_between};
+rule_to_atom(<<"length_equal">>) ->                 {strings, length_equal};
+rule_to_atom(<<"like">>) ->                         {strings, like};
+rule_to_atom(<<"email">>) ->                        {special, email};
+rule_to_atom(<<"url">>) ->                          {special, url};
+rule_to_atom(<<"iso_date">>) ->                     {special, iso_date};
+rule_to_atom(<<"equal_to_field">>) ->               {special, equal_to_field};
+rule_to_atom(<<"nested_object">>) ->                {helper, nested_object};
+rule_to_atom(<<"list_of">>) ->                      {helper, list_of};
+rule_to_atom(<<"list_of_objects">>) ->              {helper, list_of_objects};
+rule_to_atom(<<"list_of_different_objects">>) ->    {helper, list_of_different_objects};
+rule_to_atom(<<"trim">>) ->                         {filter, trim};
+rule_to_atom(<<"to_lc">>) ->                        {filter, to_lc};
+rule_to_atom(<<"to_uc">>) ->                        {filter, to_uc};
+rule_to_atom(<<"remove">>) ->                       {filter, remove};
+rule_to_atom(<<"leave_only">>) ->                   {filter, leave_only};
 rule_to_atom(_) ->                                  undefined.
 
 %% TODO this is fucking hack, but without it 'required' and 'not_empty_list' rules doesn't work!!!
