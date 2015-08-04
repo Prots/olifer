@@ -1,4 +1,4 @@
--module(filter).
+-module(olifer_filter).
 -author("prots.igor@gmail.com").
 
 -include("olifer.hrl").

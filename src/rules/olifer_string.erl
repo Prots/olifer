@@ -1,4 +1,4 @@
--module(strings).
+-module(olifer_string).
 -author("prots.igor@gmail.com").
 
 -include("olifer.hrl").

@@ -1,4 +1,4 @@
--module(common).
+-module(olifer_common).
 -author("prots.igor@gmail.com").
 
 -include("olifer.hrl").

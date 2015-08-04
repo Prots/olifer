@@ -1,4 +1,4 @@
--module(numeric).
+-module(olifer_numeric).
 -author("prots.igor@gmail.com").
 
 -include("olifer.hrl").
