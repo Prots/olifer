@@ -4,7 +4,7 @@
 
 -export([start/0, stop/0]).
 -export([validate/2]).
--export([register_rule/1]).
+-export([register_rule/3]).
 -export([register_aliased_rule/1]).
 -export([rule_to_atom/1]).
 -export([decode/1]).
@@ -22,8 +22,8 @@ validate(DataPropList, RulesPropList) when is_list(DataPropList), is_list(RulesP
 validate(Data, Rules) ->
     [#field{name = Data, input = Data, rules = Rules, output = ?FORMAT_ERROR, errors = ?FORMAT_ERROR}].
 
-register_rule(Data) ->
-    true = ets:insert(?RULES_TBL, Data),
+register_rule(Name, Module, Function) when is_atom(Module), is_atom(Function) ->
+    true = ets:insert(?RULES_TBL, {Name, Module, Function}),
     ok.
 
 register_aliased_rule(AliasesJson) ->
@@ -40,7 +40,6 @@ stop() ->
 register_aliases([]) ->
     ok;
 register_aliases([Alias|Rest]) ->
-%%     ct:print("AliasPropList: ~p~n", [Alias]),
     Name = proplists:get_value(<<"name">>, Alias),
     Rules = proplists:get_value(<<"rules">>, Alias),
     ErrorCode = proplists:get_value(<<"error">>, Alias),
@@ -51,6 +50,12 @@ lookup_alias(Name) ->
     case ets:lookup(?ALIASES_TBL, Name) of
         [] -> undefined;
         [{Name, Rules, Error}|_] -> {Name, Rules, Error}
+    end.
+
+lookup_rules(Name) ->
+    case ets:lookup(?RULES_TBL, Name) of
+        [] -> undefined;
+        [{Name, Module, Function}|_] -> {Name, Module, Function}
     end.
 
 prevalidate(DataPropList, RulesPropList) ->
@@ -99,7 +104,13 @@ apply_one_rule(Field, Rule, Args, AllData) ->
         RuleAtom ->  process_result(erlang:apply(olifer_rules, RuleAtom, [Field#field.input, Args, AllData]), Field#field.input)
     end.
 
-apply_user_rules(Field, RuleName, _Args, AllData) ->
+apply_user_rules(Field, Rule, Args, AllData) ->
+    case apply_aliased_rules(Field, Rule, AllData) of
+        undefined -> apply_registered_rules(Field, Rule, Args);
+        Res -> Res
+    end.
+
+apply_aliased_rules(Field, RuleName, AllData) ->
     case lookup_alias(RuleName) of
         undefined ->
             undefined;
@@ -113,6 +124,14 @@ apply_user_rules(Field, RuleName, _Args, AllData) ->
                 #field{errors = []} = NewField -> {ok, NewField#field.output};
                 _ -> {error, Error}
             end
+    end.
+
+apply_registered_rules(Field, RuleName, Args) ->
+    case lookup_rules(RuleName) of
+        undefined ->
+            undefined;
+        {RuleName, Module, Function} ->
+            erlang:apply(Module, Function, [Field#field.input, Args])
     end.
 
 process_result(undefined, Input) -> {Input, Input, []};

@@ -1,0 +1,10 @@
+{
+    "password1": "WEAK_PSSSWORD",
+    "password2": "WEAK_PSSSWORD",
+    "password3": "WEAK_PSSSWORD",
+
+    "value_is_hash":        "FORMAT_ERROR",
+    "value_is_empty_hash":  "FORMAT_ERROR",
+    "value_is_array":       "FORMAT_ERROR",
+    "value_is_empty_array": "FORMAT_ERROR"
+}

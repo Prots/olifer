@@ -1,0 +1,4 @@
+{
+    "password1": { "strong_password": 15 },
+    "password2": { "strong_password": [15] }
+}

@@ -1,0 +1,10 @@
+{
+    "password1": { "strong_password": 15 },
+    "password2": { "strong_password": [15] },
+    "password3": [ { "strong_password": [15] } ],
+
+    "value_is_hash":        { "strong_password": 15 },
+    "value_is_empty_hash":  { "strong_password": 15 },
+    "value_is_array":       { "strong_password": 15 },
+    "value_is_empty_array": { "strong_password": 15 }
+}
