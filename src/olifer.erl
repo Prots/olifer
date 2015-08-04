@@ -6,10 +6,6 @@
 -export([validate/2]).
 -export([register_rule/3]).
 -export([register_aliased_rule/1]).
--export([rule_to_atom/1]).
--export([decode/1]).
--export([apply_rules/2]).
--export([prevalidate/2]).
 
 %% API
 validate(Data, Rules) when is_binary(Data), is_binary(Rules) ->
@@ -171,7 +167,6 @@ rule_to_atom(<<"leave_only">>) ->                   leave_only;
 rule_to_atom(_) ->                                  undefined.
 
 %% TODO this is fucking hack, but without it 'required' and 'not_empty_list' rules doesn't work!!!
-
 has_spec_rule(FieldRules) ->
     has_spec_rule(FieldRules, ?SPEC_RULES).
 
