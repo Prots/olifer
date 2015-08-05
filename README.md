@@ -43,7 +43,7 @@ See http://livr-spec.org for detailed documentation and list of supported rules.
 4. Thats all, now you can validate data, register your own rules or aliased built-in rules.
  
 #USAGE
-1. **Validate data**.
+**1. Validate data**
 ```
 1> Input = <<"{\n\"first_name\":\"Vasya\",\n\"last_name\":\"Pupkin\"\n}">>.               
 <<"{\n\"first_name\":\"Vasya\",\n\"last_name\":\"Pupkin\"\n}">>
@@ -53,6 +53,6 @@ See http://livr-spec.org for detailed documentation and list of supported rules.
 
 3> olifer:validate(Input, Rules).
 ```
-2. **Register aliased rule**.
-3. **Register new rule**.
+**2. Register aliased rule**
+**3. Register new rule**
 
