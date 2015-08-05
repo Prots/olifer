@@ -17,10 +17,31 @@ See http://livr-spec.org for detailed documentation and list of supported rules.
 * Rules are be able to change results output ("trim", "nested_object", for example)
 * Multipurpose (user input validation, configs validation, contracts programming etc)
  
-#USAGE
+#STARTING
 
-1. Add as a dependency in your project.
-2. Add in **your_project.app.src** file in tuple **applications**.
-3. Run **olifer:start()**.
+1. Add as a dependency in your project:
+*  For **rebar** add to rebar.config: 
+```
+   {olifer, ".*",
+        {git, "git@github.com:Prots/olifer.git", {branch, master}}
+   }
+```
+*  For **erlang.mk** add to make file:
+```
+   DEPS = olifer
+   dep_olifer = git@github.com:Prots/olifer.git master
+```
+2. Add in **your_project.app.src** file in tuple **applications**:
+```  
+{applications, [
+                 kernel,
+                 stdlib,
+                 olifer
+                 ]
+   },
+```
+3. Run **olifer:start()** in your project start function.
 4. Thats all, now you can validate data, register your own rules or aliased built-in rules.
+ 
+#USAGE
 
