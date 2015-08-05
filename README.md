@@ -54,5 +54,6 @@ See http://livr-spec.org for detailed documentation and list of supported rules.
 3> olifer:validate(Input, Rules).
 ```
 **2. Register aliased rule**
+
 **3. Register new rule**
 
