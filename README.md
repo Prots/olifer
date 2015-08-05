@@ -20,18 +20,18 @@ See http://livr-spec.org for detailed documentation and list of supported rules.
 #GETTING STARTED
 1. Add as a dependency in your project:
   * For **rebar** add to rebar.config
-   ```
+   ```erl
       {olifer, ".*",
            {git, "git@github.com:Prots/olifer.git", {branch, master}}
       }
    ```
   * For **erlang.mk** add to make file:
-   ```
+   ```erl
       DEPS = olifer
       dep_olifer = git@github.com:Prots/olifer.git master
    ```
 2. Add in **your_project.app.src** file in tuple **applications**:
-   ```  
+   ```erl  
    {applications, [
                    kernel,
                    stdlib,
@@ -44,7 +44,7 @@ See http://livr-spec.org for detailed documentation and list of supported rules.
  
 #USAGE
 **1. Validate data**
-```
+```erl
 1> Input = <<"{\n\"first_name\":\"Vasya\",\n\"last_name\":\"Pupkin\"\n}">>.               
 <<"{\n\"first_name\":\"Vasya\",\n\"last_name\":\"Pupkin\"\n}">>
 
