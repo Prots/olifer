@@ -44,6 +44,15 @@ See http://livr-spec.org for detailed documentation and list of supported rules.
  
 #USAGE
 1. **Validate data**.
+```
+1> Input = <<"{\n\"first_name\":\"Vasya\",\n\"last_name\":\"Pupkin\"\n}">>.               
+<<"{\n\"first_name\":\"Vasya\",\n\"last_name\":\"Pupkin\"\n}">>
+
+2> Rules = <<"{\n\"first_name\":{\"min_length\":3},\n\"last_name\":{\"min_length\":[4]}\n}">>.
+<<"{\n\"first_name\":{\"min_length\":3},\n\"last_name\":{\"min_length\":[4]}\n}">>
+
+3> olifer:validate(Input, Rules).
+```
 2. **Register aliased rule**.
 3. **Register new rule**.
 
