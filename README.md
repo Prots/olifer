@@ -17,7 +17,7 @@ See http://livr-spec.org for detailed documentation and list of supported rules.
 * Rules are be able to change results output ("trim", "nested_object", for example)
 * Multipurpose (user input validation, configs validation, contracts programming etc)
  
-#STARTING
+#GETTING STARTED
 1. Add as a dependency in your project:
   * For **rebar** add to rebar.config
    ```
@@ -43,4 +43,7 @@ See http://livr-spec.org for detailed documentation and list of supported rules.
 4. Thats all, now you can validate data, register your own rules or aliased built-in rules.
  
 #USAGE
+1. **Validate data**.
+2. **Register aliased rule**.
+3. **Register new rule**.
 
