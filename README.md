@@ -1,1 +1,1 @@
-LIVR - Lightweight validator supporting Language Independent Validation Rules Specification http://livr-spec.org/ for Erlang
+Olifer is lightweight validator supporting Language Independent Validation Rules Specification (LIVR) http://livr-spec.org/ for Erlang
