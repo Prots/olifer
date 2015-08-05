@@ -2,21 +2,22 @@
 
 -include("olifer.hrl").
 
--export([start/0, stop/0]).
+%% LIVR API
 -export([validate/2]).
 -export([register_rule/3]).
 -export([register_aliased_rule/1]).
+%% FOR INTERNAL USAGE
+-export([start/0, stop/0]).
+-export([validate_data/2]).
 
-%% API
+%% LIVR API
 validate(Data, Rules) when is_binary(Data), is_binary(Rules) ->
     RulesPropList = decode(Rules),
     DataPropList = decode(Data),
-    validate(DataPropList, RulesPropList);
-validate(DataPropList, RulesPropList) when is_list(DataPropList), is_list(RulesPropList) ->
-    ListOfFields = prevalidate(DataPropList, RulesPropList),
-    lists:reverse([apply_rules(Field, DataPropList) || Field <- ListOfFields]);
-validate(Data, Rules) ->
-    [#field{name = Data, input = Data, rules = Rules, output = ?FORMAT_ERROR, errors = ?FORMAT_ERROR}].
+    FieldsList = validate_data(DataPropList, RulesPropList),
+    lists:reverse(return_result(FieldsList, [], []));
+validate(Data, _Rules) ->
+    [{Data, ?FORMAT_ERROR}].
 
 register_rule(Name, Module, Function) when is_atom(Module), is_atom(Function) ->
     true = ets:insert(?RULES_TBL, {Name, Module, Function}),
@@ -26,13 +27,29 @@ register_aliased_rule(AliasesJson) ->
     Aliases = decode(AliasesJson),
     register_aliases(Aliases).
 
+%% FOR INTERNAL USAGE
 start() ->
     start(?MODULE).
 
 stop() ->
     application:stop(?MODULE).
 
+validate_data(DataPropList, RulesPropList) when is_list(DataPropList), is_list(RulesPropList) ->
+    ListOfFields = prepare(DataPropList, RulesPropList),
+    lists:reverse([apply_rules(Field, DataPropList) || Field <- ListOfFields]);
+validate_data(Data, Rules) ->
+    [#field{name = Data, input = Data, rules = Rules, output = ?FORMAT_ERROR, errors = ?FORMAT_ERROR}].
+
 %% INTERNAL
+return_result([], AccOk, []) ->
+    AccOk;
+return_result([], _, AccErr) ->
+    AccErr;
+return_result([#field{errors = []} = Field|Rest], AccOk, AccErr) ->
+    return_result(Rest, [{Field#field.name, Field#field.output}|AccOk], AccErr);
+return_result([Field|Rest], AccOk, AccErr) ->
+    return_result(Rest, AccOk, [{Field#field.name, Field#field.errors}|AccErr]).
+
 register_aliases([]) ->
     ok;
 register_aliases([Alias|Rest]) ->
@@ -54,24 +71,24 @@ lookup_rules(Name) ->
         [{Name, Module, Function}|_] -> {Name, Module, Function}
     end.
 
-prevalidate(DataPropList, RulesPropList) ->
-    prevalidate(DataPropList, DataPropList, RulesPropList, []).
+prepare(DataPropList, RulesPropList) ->
+    prepare(DataPropList, DataPropList, RulesPropList, []).
 
-prevalidate(_DataPropList, _AllData, [], Acc) ->
+prepare(_DataPropList, _AllData, [], Acc) ->
     Acc;
-prevalidate([], AllData, [{FieldName, FieldRules}|RestRules], Acc) ->
+prepare([], AllData, [{FieldName, FieldRules}|RestRules], Acc) ->
     case has_spec_rule(FieldRules) of
-        true -> prevalidate([], AllData, RestRules, [#field{name = FieldName, input= <<>>, rules = FieldRules}|Acc]);
-        false -> prevalidate([], AllData, RestRules, Acc)
+        true -> prepare([], AllData, RestRules, [#field{name = FieldName, input= <<>>, rules = FieldRules}|Acc]);
+        false -> prepare([], AllData, RestRules, Acc)
     end;
-prevalidate([{FieldName, FieldData}|RestData], AllData, RulesPropList, Acc) ->
+prepare([{FieldName, FieldData}|RestData], AllData, RulesPropList, Acc) ->
     {NewAcc, RestRules} = case lists:keyfind(FieldName, 1, RulesPropList) of
         false ->
             {Acc, RulesPropList};
         {FieldName, FieldRules} ->
             {[#field{name = FieldName, input = FieldData, rules = FieldRules}|Acc], proplists:delete(FieldName, RulesPropList)}
     end,
-    prevalidate(RestData, AllData, RestRules, NewAcc).
+    prepare(RestData, AllData, RestRules, NewAcc).
 
 apply_rules(#field{rules = []} = Field, _AllData) ->
     Field;
@@ -132,7 +149,9 @@ apply_registered_rules(Field, RuleName, Args) ->
 
 process_result(undefined, Input) -> {Input, Input, []};
 process_result({filter, Output}, _) -> {Output, Output, []};
-process_result({ok, Output}, Input) -> {Input, Output, []};
+process_result({ok, Output}, Input) ->
+    ct:print("ok ~p~n", [Output]),
+    {Input, Output, []};
 process_result({error, Error}, Input) -> {Input, Error, Error}.
 
 rule_to_atom(<<"required">>) ->                     {olifer_common, required};

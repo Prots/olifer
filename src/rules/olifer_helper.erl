@@ -13,7 +13,7 @@
 nested_object(<<>> = Value, _Args, _) ->
     {ok, Value};
 nested_object(Value, Args, _AllData) when is_list(Value)->
-    FieldsList = olifer:validate(Value, Args),
+    FieldsList = olifer:validate_data(Value, Args),
     post_processing(nested_object, FieldsList);
 nested_object(_Value, _Args, _) ->
     {error, ?FORMAT_ERROR}.
@@ -24,7 +24,7 @@ list_of(Values, [Args], AllData) when is_list(Values) ->
     list_of(Values, Args, AllData);
 list_of(Values, Args, _) when is_list(Values) ->
     {DataPropList, RulesPropList} = pred_processing(list_of, Values, Args),
-    FieldsList = olifer:validate(DataPropList, RulesPropList),
+    FieldsList = olifer:validate_data(DataPropList, RulesPropList),
     post_processing(list_of, FieldsList);
 list_of(_Value, _Args, _) ->
     {error, ?FORMAT_ERROR}.
@@ -35,7 +35,7 @@ list_of_objects(Values, [Args], AllData) when is_list(Values) ->
     list_of(Values, Args, AllData);
 list_of_objects(Values, Args, _) when is_list(Values) ->
     ListOfObjects = pred_processing(list_of_objects, Values, Args, []),
-    ObjFieldsList = [olifer:validate(DataPropList, RulesPropList) || {DataPropList, RulesPropList} <- ListOfObjects],
+    ObjFieldsList = [olifer:validate_data(DataPropList, RulesPropList) || {DataPropList, RulesPropList} <- ListOfObjects],
     post_processing(list_of_objects, ObjFieldsList, [], []);
 list_of_objects(_Value, _Args, _) ->
     {error, ?FORMAT_ERROR}.
@@ -46,7 +46,7 @@ list_of_different_objects(Values, [Args], AllData) when is_list(Values) ->
     list_of(Values, Args, AllData);
 list_of_different_objects(Values, Args, _) when is_list(Values) ->
     ListOfObjects = pred_processing(list_of_different_objects, Values, Args, []),
-    ObjFieldsList = [olifer:validate(DataPropList, RulesPropList) || {DataPropList, RulesPropList} <- ListOfObjects],
+    ObjFieldsList = [olifer:validate_data(DataPropList, RulesPropList) || {DataPropList, RulesPropList} <- ListOfObjects],
     Res = post_processing(list_of_objects, ObjFieldsList, [], []),
     Res;
 list_of_different_objects(_Value, _Args, _) ->
