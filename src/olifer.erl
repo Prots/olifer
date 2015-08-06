@@ -11,10 +11,8 @@
 -export([validate_data/2]).
 
 %% LIVR API
-validate(Data, Rules) when is_binary(Data), is_binary(Rules) ->
-    RulesPropList = decode(Rules),
-    DataPropList = decode(Data),
-    FieldsList = validate_data(DataPropList, RulesPropList),
+validate(Data, Rules) when is_list(Data), is_list(Rules) ->
+    FieldsList = validate_data(Data, Rules),
     lists:reverse(return_result(FieldsList, [], []));
 validate(Data, _Rules) ->
     [{Data, ?FORMAT_ERROR}].
@@ -23,8 +21,7 @@ register_rule(Name, Module, Function) when is_atom(Module), is_atom(Function) ->
     true = ets:insert(?RULES_TBL, {Name, Module, Function}),
     ok.
 
-register_aliased_rule(AliasesJson) ->
-    Aliases = decode(AliasesJson),
+register_aliased_rule(Aliases) when is_list(Aliases) ->
     register_aliases(Aliases).
 
 %% FOR INTERNAL USAGE
@@ -149,9 +146,7 @@ apply_registered_rules(Field, RuleName, Args) ->
 
 process_result(undefined, Input) -> {Input, Input, []};
 process_result({filter, Output}, _) -> {Output, Output, []};
-process_result({ok, Output}, Input) ->
-    ct:print("ok ~p~n", [Output]),
-    {Input, Output, []};
+process_result({ok, Output}, Input) -> {Input, Output, []};
 process_result({error, Error}, Input) -> {Input, Error, Error}.
 
 rule_to_atom(<<"required">>) ->                     {olifer_common, required};
@@ -211,13 +206,6 @@ has_rule([_|Rest], Type) ->
     has_rule(Rest, Type);
 has_rule(_, _) ->
     false.
-
-decode(BinaryData) ->
-    try
-        jsx:decode(BinaryData)
-    catch
-        _:_ -> json_parsing_error
-    end.
 
 start(AppName) ->
     F = fun({App, _, _}) -> App end,

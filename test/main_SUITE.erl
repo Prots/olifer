@@ -38,7 +38,7 @@ test_positive(_Config) ->
     [begin
          {Rules, Input, Output} = get_working_data(positive, TestDir, WholePath),
          ct:print("Test name:~p~nRules: ~p,~nInput: ~p,~nOutput: ~p,~n", [TestDir, Rules, Input, Output]),
-         ?assertEqual(decode(Output), olifer:validate(Input, Rules))
+         ?assertEqual(Output, olifer:validate(Input, Rules))
      end || TestDir <- lists:sort(ListDir)].
 
 test_negative(_Config) ->
@@ -47,7 +47,7 @@ test_negative(_Config) ->
     [begin
          {Rules, Input, Errors} = get_working_data(negative, TestDir, WholePath),
          ct:print("Test name:~p~nRules: ~p,~nInput: ~p,~nErrors: ~p,~n", [TestDir, Rules, Input, Errors]),
-         ?assertEqual(decode(Errors), olifer:validate(Input, Rules))
+         ?assertEqual(Errors, olifer:validate(Input, Rules))
      end || TestDir <- lists:sort(ListDir)].
 
 test_aliases_positive(_Config) ->
@@ -57,7 +57,7 @@ test_aliases_positive(_Config) ->
          {Aliases, Rules, Input, Output} = get_working_data(aliases_positive, TestDir, WholePath),
          ct:print("Test name:~p~nAliases:~p, Rules: ~p,~nInput: ~p,~nOutput: ~p,~n", [TestDir, Aliases, Rules, Input, Output]),
          ok = olifer:register_aliased_rule(Aliases),
-         ?assertEqual(decode(Output), olifer:validate(Input, Rules))
+         ?assertEqual(Output, olifer:validate(Input, Rules))
      end || TestDir <- lists:sort(ListDir)].
 
 test_aliases_negative(_Config) ->
@@ -67,7 +67,7 @@ test_aliases_negative(_Config) ->
          {Aliases, Rules, Input, Errors} = get_working_data(aliases_negative, TestDir, WholePath),
          ct:print("Test name:~p~nAliases:~p, Rules: ~p,~nInput: ~p,~nOutput: ~p,~n", [TestDir, Aliases, Rules, Input, Errors]),
          ok = olifer:register_aliased_rule(Aliases),
-         ?assertEqual(decode(Errors), olifer:validate(Input, Rules))
+         ?assertEqual(Errors, olifer:validate(Input, Rules))
      end || TestDir <- lists:sort(ListDir)].
 
 test_register_positive(_Config) ->
@@ -77,7 +77,7 @@ test_register_positive(_Config) ->
          {Rules, Input, Output} = get_working_data(register_positive, TestDir, WholePath),
          ct:print("Test name:~p~nRules: ~p,~nInput: ~p,~nOutput: ~p,~n", [TestDir, Rules, Input, Output]),
          ok = olifer:register_rule(list_to_binary(TestDir), new_rules, list_to_atom(TestDir)),
-         ?assertEqual(decode(Output), olifer:validate(Input, Rules))
+         ?assertEqual(Output, olifer:validate(Input, Rules))
      end || TestDir <- lists:sort(ListDir)].
 
 test_register_negative(_Config) ->
@@ -87,7 +87,7 @@ test_register_negative(_Config) ->
          {Rules, Input, Errors} = get_working_data(register_negative, TestDir, WholePath),
          ct:print("Test name:~p~nRules: ~p,~nInput: ~p,~nOutput: ~p,~n", [TestDir, Rules, Input, Errors]),
          ok = olifer:register_rule(list_to_binary(TestDir), new_rules, list_to_atom(TestDir)),
-         ?assertEqual(decode(Errors), olifer:validate(Input, Rules))
+         ?assertEqual(Errors, olifer:validate(Input, Rules))
      end || TestDir <- lists:sort(ListDir)].
 
 %% INTERNAL
@@ -109,36 +109,36 @@ get_working_data(positive, TestDir, Path) ->
     {ok, Rules} = file:read_file(DataDir ++ "/rules.json"),
     {ok, Input} = file:read_file(DataDir ++ "/input.json"),
     {ok, Output} = file:read_file(DataDir ++ "/output.json"),
-    {Rules, Input, Output};
+    {decode(Rules), decode(Input), decode(Output)};
 get_working_data(negative, TestDir, Path) ->
     DataDir = Path ++ "/" ++ TestDir,
     {ok, Rules} = file:read_file(DataDir ++ "/rules.json"),
     {ok, Input} = file:read_file(DataDir ++ "/input.json"),
     {ok, Errors} = file:read_file(DataDir ++ "/errors.json"),
-    {Rules, Input, Errors};
+    {decode(Rules), decode(Input), decode(Errors)};
 get_working_data(aliases_positive, TestDir, Path) ->
     DataDir = Path ++ TestDir,
     {ok, Aliases} = file:read_file(DataDir ++ "/aliases.json"),
     {ok, Rules} = file:read_file(DataDir ++ "/rules.json"),
     {ok, Input} = file:read_file(DataDir ++ "/input.json"),
     {ok, Output} = file:read_file(DataDir ++ "/output.json"),
-    {Aliases, Rules, Input, Output};
+    {decode(Aliases), decode(Rules), decode(Input), decode(Output)};
 get_working_data(aliases_negative, TestDir, Path) ->
     DataDir = Path ++ TestDir,
     {ok, Aliases} = file:read_file(DataDir ++ "/aliases.json"),
     {ok, Rules} = file:read_file(DataDir ++ "/rules.json"),
     {ok, Input} = file:read_file(DataDir ++ "/input.json"),
     {ok, Errors} = file:read_file(DataDir ++ "/errors.json"),
-    {Aliases, Rules, Input, Errors};
+    {decode(Aliases), decode(Rules), decode(Input), decode(Errors)};
 get_working_data(register_positive, TestDir, Path) ->
     DataDir = Path ++ TestDir,
     {ok, Rules} = file:read_file(DataDir ++ "/rules.json"),
     {ok, Input} = file:read_file(DataDir ++ "/input.json"),
     {ok, Output} = file:read_file(DataDir ++ "/output.json"),
-    {Rules, Input, Output};
+    {decode(Rules), decode(Input), decode(Output)};
 get_working_data(register_negative, TestDir, Path) ->
     DataDir = Path ++ TestDir,
     {ok, Rules} = file:read_file(DataDir ++ "/rules.json"),
     {ok, Input} = file:read_file(DataDir ++ "/input.json"),
     {ok, Errors} = file:read_file(DataDir ++ "/errors.json"),
-    {Rules, Input, Errors}.
+    {decode(Rules), decode(Input), decode(Errors)}.
