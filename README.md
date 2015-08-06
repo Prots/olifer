@@ -46,6 +46,7 @@ See http://livr-spec.org for detailed documentation and list of supported rules.
  
 #USAGE
 **1. Validate data**
+
 Simple example:
 ```erl
 1> Input =  [{<<"first_name">>,<<"Vasya">>}].
@@ -60,7 +61,7 @@ Simple example:
 
 6> Rule1 = [{<<"number1">>,<<"integer">>}].
 
-7> olifer:validate(Input, Rule).
+7> olifer:validate(Input1, Rule1).
 
 8> [{<<"number1">>,<<"NOT_INTEGER">>}]
 ```
