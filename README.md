@@ -56,20 +56,20 @@ See http://livr-spec.org for detailed documentation and list of supported rules.
             {<<"extra_field">>,<<"will be removed">>}].
 
 2> Rules = [{<<"address">>,
-         [<<"required">>,
-          [{<<"nested_object">>,
-            [{<<"country">>,[<<"required">>,[{<<"one_of">>,[[<<"Ukraine">>,<<"USA">>]]}]]},
-             {<<"zip">>,<<"positive_integer">>},
-             {<<"street">>,<<"required">>},
-             {<<"building">>,[<<"required">>,<<"positive_integer">>]}]}]]}].
+                [<<"required">>,
+                 [{<<"nested_object">>,
+                   [{<<"country">>,[<<"required">>,[{<<"one_of">>,[[<<"Ukraine">>,<<"USA">>]]}]]},
+                    {<<"zip">>,<<"positive_integer">>},
+                    {<<"street">>,<<"required">>},
+                    {<<"building">>,[<<"required">>,<<"positive_integer">>]}]}]]}].
 
 3> olifer:validate(Input, Rules).
 
 4> [{<<"address">>,
-         [{<<"country">>,<<"Ukraine">>},
-          {<<"zip">>,<<"12345">>},
-          {<<"street">>,<<"10">>},
-          {<<"building">>,<<"10">>}]}]
+       [{<<"country">>,<<"Ukraine">>},
+        {<<"zip">>,<<"12345">>},
+        {<<"street">>,<<"10">>},
+        {<<"building">>,<<"10">>}]}]
 ```
 **2. Register aliased rule**
 
