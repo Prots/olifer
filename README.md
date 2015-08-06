@@ -46,14 +46,50 @@ See http://livr-spec.org for detailed documentation and list of supported rules.
  
 #USAGE
 **1. Validate data**
-```erl
-1> Input = <<"{\n\"first_name\":\"Vasya\",\n\"last_name\":\"Pupkin\"\n}">>.               
-<<"{\n\"first_name\":\"Vasya\",\n\"last_name\":\"Pupkin\"\n}">>
 
-2> Rules = <<"{\n\"first_name\":{\"min_length\":3},\n\"last_name\":{\"min_length\":[4]}\n}">>.
-<<"{\n\"first_name\":{\"min_length\":3},\n\"last_name\":{\"min_length\":[4]}\n}">>
+Simple example:
+```erl
+1> Input =  [{<<"first_name">>,<<"Vasya">>}].
+
+2> Rule = [{<<"first_name">>,[{<<"length_between">>,[4,6]}]}].
+
+3> olifer:validate(Input, Rule).
+
+4>  [{<<"first_name">>,<<"Vasya">>}]
+
+5> Input1 =  [{<<"number1">>,-1.12}].
+
+6> Rule1 = [{<<"number1">>,<<"integer">>}].
+
+7> olifer:validate(Input1, Rule1).
+
+8> [{<<"number1">>,<<"NOT_INTEGER">>}]
+```
+More complex example
+```erl
+1> Input =  [{<<"address">>,
+                [{<<"country">>,<<"Ukraine">>},
+                 {<<"zip">>,<<"12345">>},
+                 {<<"street">>,<<"10">>},
+                 {<<"building">>,<<"10">>},
+                 {<<"extra_field">>,<<"will be removed">>}]},
+            {<<"extra_field">>,<<"will be removed">>}].
+
+2> Rules = [{<<"address">>,
+                [<<"required">>,
+                 [{<<"nested_object">>,
+                   [{<<"country">>,[<<"required">>,[{<<"one_of">>,[[<<"Ukraine">>,<<"USA">>]]}]]},
+                    {<<"zip">>,<<"positive_integer">>},
+                    {<<"street">>,<<"required">>},
+                    {<<"building">>,[<<"required">>,<<"positive_integer">>]}]}]]}].
 
 3> olifer:validate(Input, Rules).
+
+4> [{<<"address">>,
+       [{<<"country">>,<<"Ukraine">>},
+        {<<"zip">>,<<"12345">>},
+        {<<"street">>,<<"10">>},
+        {<<"building">>,<<"10">>}]}]
 ```
 **2. Register aliased rule**
 
