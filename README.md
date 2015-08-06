@@ -4,6 +4,8 @@ Olifer is lightweight validator supporting Language Independent Validation Rules
 
 See http://livr-spec.org for detailed documentation and list of supported rules.
 
+[![Build Status](https://travis-ci.org/Prots/olifer.svg?branch=master)](https://travis-ci.org/Prots/olifer)
+
 **Features:**
 
 * Rules are declarative and language independent
