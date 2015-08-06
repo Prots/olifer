@@ -56,12 +56,19 @@ equal_to_field(_Value, _Args, _) ->
 
 
 %% INTERNAL
-check_url_details({http, _UserInfo, _Host, _Port, _Path, _Query}, Value) ->
-    {ok, Value};
-check_url_details({https, _UserInfo, _Host, _Port, _Path, _Query}, Value) ->
-    {ok, Value};
+check_url_details({http, _UserInfo, Host, _Port, _Path, _Query}, Value) ->
+    check_hostname(Host, Value);
+check_url_details({https, _UserInfo, Host, _Port, _Path, _Query}, Value) ->
+    check_hostname(Host, Value);
 check_url_details(_, _) ->
     {error, ?WRONG_URL}.
+
+check_hostname(Host, Value) ->
+    Pattern = "^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])(\\.([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9]))*$",
+    case re:run(Host, Pattern, [caseless, {capture, none}]) of
+        nomatch -> {error, ?WRONG_URL};
+        _ -> {ok, Value}
+    end.
 
 check_date(DateBin, Value) ->
     case [binary_to_int(Bin)|| Bin <- DateBin] of
