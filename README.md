@@ -68,30 +68,59 @@ Simple example:
 More complex example
 ```erl
 1> Input =  [{<<"address">>,
-                [{<<"country">>,<<"Ukraine">>},
-                 {<<"zip">>,<<"12345">>},
-                 {<<"street">>,<<"10">>},
-                 {<<"building">>,<<"10">>},
-                 {<<"extra_field">>,<<"will be removed">>}]},
-            {<<"extra_field">>,<<"will be removed">>}].
+                [{<<"country">>, <<"Ukraine">>},
+                 {<<"zip">>, <<"12345">>},
+                 {<<"street">>, <<"10">>},
+                 {<<"building">>, <<"10">>},
+                 {<<"extra_field">>, <<"will be removed">>}]},
+            {<<"extra_field">>, <<"will be removed">>}].
 
 2> Rules = [{<<"address">>,
                 [<<"required">>,
                  [{<<"nested_object">>,
-                   [{<<"country">>,[<<"required">>,[{<<"one_of">>,[[<<"Ukraine">>,<<"USA">>]]}]]},
-                    {<<"zip">>,<<"positive_integer">>},
-                    {<<"street">>,<<"required">>},
-                    {<<"building">>,[<<"required">>,<<"positive_integer">>]}]}]]}].
+                   [{<<"country">>, [<<"required">>, [{<<"one_of">>, [[<<"Ukraine">>, <<"USA">>]]}]]},
+                    {<<"zip">>, <<"positive_integer">>},
+                    {<<"street">>, <<"required">>},
+                    {<<"building">>, [<<"required">>, <<"positive_integer">>]}]}]]}].
 
 3> olifer:validate(Input, Rules).
 
 4> [{<<"address">>,
-       [{<<"country">>,<<"Ukraine">>},
-        {<<"zip">>,<<"12345">>},
-        {<<"street">>,<<"10">>},
-        {<<"building">>,<<"10">>}]}]
+       [{<<"country">>, <<"Ukraine">>},
+        {<<"zip">>, <<"12345">>},
+        {<<"street">>, <<"10">>},
+        {<<"building">>, <<"10">>}]}]
 ```
 **2. Register aliased rule**
+The **"name"** and **"rules"** fields is required, **"error"** is not required for alias definition
+```erl
+1> Alias1 = [[{<<"name">>, <<"adult_age">>},
+              {<<"rules">>, [<<"positive_integer">>, [{<<"min_number">>, 18}]]}]].
 
+2> Alias2 = [[{<<"name">>, <<"adult_age_with_custom_error">>},
+              {<<"rules">>, [<<"positive_integer">>, [{<<"min_number">>, 18}]]},
+              {<<"error">>, <<"WRONG_AGE">>}]].
+
+3> olifer:register_aliased_rule(Alias1).
+ok
+4> olifer:register_aliased_rule(Alias2).
+ok
+5> Rules =  [{<<"age1">>, <<"adult_age">>}, {<<"age2">>, <<"adult_age_with_custom_error">>}].
+
+6> Input = [{<<"age1">>, 14}].
+
+7> Input1 = [{<<"age1">>, 32}].
+
+8> Input2 = [{<<"age2">>, 15}].
+
+9> olifer:validate(Input, Rules).
+[{<<"age1">>,<<"TOO_LOW">>}]
+
+10> olifer:validate(Input1, Rules).
+[{<<"age1">>, 32}]
+
+11> olifer:validate(Input2, Rules).
+[{<<"age2">>, <<"WRONG_AGE">>}]
+```
 **3. Register new rule**
 
