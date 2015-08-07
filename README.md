@@ -92,6 +92,7 @@ More complex example
         {<<"building">>, <<"10">>}]}]
 ```
 **2. Register aliased rule**
+
 The **"name"** and **"rules"** fields is required, **"error"** is not required for alias definition
 ```erl
 1> Alias1 = [[{<<"name">>, <<"adult_age">>},
