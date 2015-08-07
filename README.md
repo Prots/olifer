@@ -125,3 +125,35 @@ ok
 ```
 **3. Register new rule**
 
+You can create your own rules, for example:
+```erl
+-module(new_rules).
+
+-export([strong_password/2]).
+
+strong_password(Value, [MinLength]) ->
+    strong_password(Value, MinLength);
+strong_password(Value, MinLength) when is_binary(Value), byte_size(Value) >= MinLength ->
+    {ok, Value};
+strong_password(Value, _Args) when is_binary(Value) ->
+    {error, <<"WEAK_PSSSWORD">>};
+strong_password(_Value, _Args) ->
+    {error, <<"FORMAT_ERROR">>}.
+```
+The function that describe the rule should has 2 arguments, first argument is **Value** for validation and second argument is a value/list of values for rule.
+After creation your own rule you should register it:
+```erl
+1> olifer:register_rule(<<"strong_password">>, new_rules, strong_password).
+ok
+2> Rules = [{<<"password1">>, [{<<"strong_password">>, 15}]}, {<<"password2">>, [{<<"strong_password">>,[15]}]}].
+
+3> Input = [{<<"password1">>, <<"123456789012345">>}, {<<"password2">>, <<"asdasdasdasdasdasd">>}].
+
+4> olifer:validate(Input, Rules).
+[{<<"password1">>, <<"123456789012345">>}, {<<"password2">>, <<"asdasdasdasdasdasd">>}]
+
+5> Input1 = [{<<"password1">>, <<"1234">>}, {<<"password2">>, <<"asdasd">>}].
+
+6> olifer:validate(Input1, Rules).
+[{<<"password1">>, <<"WEAK_PSSSWORD">>}, {<<"password2">>, <<"WEAK_PSSSWORD">>}]
+```
