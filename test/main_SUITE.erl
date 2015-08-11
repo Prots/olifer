@@ -38,7 +38,7 @@ test_positive(_Config) ->
     [begin
          {Rules, Input, Output} = get_working_data(positive, TestDir, WholePath),
          ct:print("Test name:~p~nRules: ~p,~nInput: ~p,~nOutput: ~p,~n", [TestDir, Rules, Input, Output]),
-         ?assertEqual(Output, olifer:validate(Input, Rules))
+         ?assertEqual({ok, Output}, olifer:validate(Input, Rules))
      end || TestDir <- lists:sort(ListDir)].
 
 test_negative(_Config) ->
@@ -47,7 +47,7 @@ test_negative(_Config) ->
     [begin
          {Rules, Input, Errors} = get_working_data(negative, TestDir, WholePath),
          ct:print("Test name:~p~nRules: ~p,~nInput: ~p,~nErrors: ~p,~n", [TestDir, Rules, Input, Errors]),
-         ?assertEqual(Errors, olifer:validate(Input, Rules))
+         ?assertEqual({errors, Errors}, olifer:validate(Input, Rules))
      end || TestDir <- lists:sort(ListDir)].
 
 test_aliases_positive(_Config) ->
@@ -55,9 +55,9 @@ test_aliases_positive(_Config) ->
     {ok, ListDir} = file:list_dir(WholePath),
     [begin
          {Aliases, Rules, Input, Output} = get_working_data(aliases_positive, TestDir, WholePath),
-         ct:print("Test name:~p~nAliases:~p, Rules: ~p,~nInput: ~p,~nOutput: ~p,~n", [TestDir, Aliases, Rules, Input, Output]),
+         ct:print("Test name:~p~nAliases:~p,~nRules: ~p,~nInput: ~p,~nOutput: ~p,~n", [TestDir, Aliases, Rules, Input, Output]),
          ok = olifer:register_aliased_rule(Aliases),
-         ?assertEqual(Output, olifer:validate(Input, Rules))
+         ?assertEqual({ok, Output}, olifer:validate(Input, Rules))
      end || TestDir <- lists:sort(ListDir)].
 
 test_aliases_negative(_Config) ->
@@ -67,7 +67,7 @@ test_aliases_negative(_Config) ->
          {Aliases, Rules, Input, Errors} = get_working_data(aliases_negative, TestDir, WholePath),
          ct:print("Test name:~p~nAliases:~p, Rules: ~p,~nInput: ~p,~nOutput: ~p,~n", [TestDir, Aliases, Rules, Input, Errors]),
          ok = olifer:register_aliased_rule(Aliases),
-         ?assertEqual(Errors, olifer:validate(Input, Rules))
+         ?assertEqual({errors, Errors}, olifer:validate(Input, Rules))
      end || TestDir <- lists:sort(ListDir)].
 
 test_register_positive(_Config) ->
@@ -77,7 +77,7 @@ test_register_positive(_Config) ->
          {Rules, Input, Output} = get_working_data(register_positive, TestDir, WholePath),
          ct:print("Test name:~p~nRules: ~p,~nInput: ~p,~nOutput: ~p,~n", [TestDir, Rules, Input, Output]),
          ok = olifer:register_rule(list_to_binary(TestDir), new_rules, list_to_atom(TestDir)),
-         ?assertEqual(Output, olifer:validate(Input, Rules))
+         ?assertEqual({ok, Output}, olifer:validate(Input, Rules))
      end || TestDir <- lists:sort(ListDir)].
 
 test_register_negative(_Config) ->
@@ -87,7 +87,7 @@ test_register_negative(_Config) ->
          {Rules, Input, Errors} = get_working_data(register_negative, TestDir, WholePath),
          ct:print("Test name:~p~nRules: ~p,~nInput: ~p,~nOutput: ~p,~n", [TestDir, Rules, Input, Errors]),
          ok = olifer:register_rule(list_to_binary(TestDir), new_rules, list_to_atom(TestDir)),
-         ?assertEqual(Errors, olifer:validate(Input, Rules))
+         ?assertEqual({errors, Errors}, olifer:validate(Input, Rules))
      end || TestDir <- lists:sort(ListDir)].
 
 %% INTERNAL

@@ -13,7 +13,8 @@
 %% LIVR API
 validate(Data, Rules) when is_list(Data), is_list(Rules) ->
     FieldsList = validate_data(Data, Rules),
-    lists:reverse(return_result(FieldsList, [], []));
+    {Type, Result} = return_result(FieldsList, [], []),
+    {Type, lists:reverse(Result)};
 validate(Data, _Rules) ->
     [{Data, ?FORMAT_ERROR}].
 
@@ -39,9 +40,9 @@ validate_data(Data, Rules) ->
 
 %% INTERNAL
 return_result([], AccOk, []) ->
-    AccOk;
+    {ok, AccOk};
 return_result([], _, AccErr) ->
-    AccErr;
+    {errors, AccErr};
 return_result([#field{errors = []} = Field|Rest], AccOk, AccErr) ->
     return_result(Rest, [{Field#field.name, Field#field.output}|AccOk], AccErr);
 return_result([Field|Rest], AccOk, AccErr) ->
