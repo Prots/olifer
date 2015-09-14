@@ -11,6 +11,10 @@
 -export([validate_data/2]).
 
 %% LIVR API
+validate([], _Rules) ->
+    {ok, []};
+validate([{}], _Rules) ->
+    {ok, [{}]};
 validate(Data, Rules) when is_list(Data), is_list(Rules) ->
     FieldsList = validate_data(Data, Rules),
     {Type, Result} = return_result(FieldsList, [], []),
