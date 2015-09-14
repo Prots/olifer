@@ -55,7 +55,7 @@ Simple example:
 
 3> olifer:validate(Input, Rule).
 
-4>  [{<<"first_name">>,<<"Vasya">>}]
+4> {ok, [{<<"first_name">>,<<"Vasya">>}]}
 
 5> Input1 =  [{<<"number1">>,-1.12}].
 
@@ -63,7 +63,7 @@ Simple example:
 
 7> olifer:validate(Input1, Rule1).
 
-8> [{<<"number1">>,<<"NOT_INTEGER">>}]
+8> {errors, [{<<"number1">>,<<"NOT_INTEGER">>}]}
 ```
 More complex example
 ```erl
@@ -85,11 +85,11 @@ More complex example
 
 3> olifer:validate(Input, Rules).
 
-4> [{<<"address">>,
-       [{<<"country">>, <<"Ukraine">>},
-        {<<"zip">>, <<"12345">>},
-        {<<"street">>, <<"10">>},
-        {<<"building">>, <<"10">>}]}]
+4> {ok, [{<<"address">>,
+           [{<<"country">>, <<"Ukraine">>},
+            {<<"zip">>, <<"12345">>},
+            {<<"street">>, <<"10">>},
+            {<<"building">>, <<"10">>}]}]}
 ```
 **2. Register aliased rule**
 
@@ -115,13 +115,13 @@ ok
 8> Input2 = [{<<"age2">>, 15}].
 
 9> olifer:validate(Input, Rules).
-[{<<"age1">>,<<"TOO_LOW">>}]
+{errors, [{<<"age1">>,<<"TOO_LOW">>}]}
 
 10> olifer:validate(Input1, Rules).
-[{<<"age1">>, 32}]
+{ok, [{<<"age1">>, 32}]}
 
 11> olifer:validate(Input2, Rules).
-[{<<"age2">>, <<"WRONG_AGE">>}]
+{errors, [{<<"age2">>, <<"WRONG_AGE">>}]}
 ```
 **3. Register new rule**
 
@@ -150,10 +150,10 @@ ok
 3> Input = [{<<"password1">>, <<"123456789012345">>}, {<<"password2">>, <<"asdasdasdasdasdasd">>}].
 
 4> olifer:validate(Input, Rules).
-[{<<"password1">>, <<"123456789012345">>}, {<<"password2">>, <<"asdasdasdasdasdasd">>}]
+{ok, [{<<"password1">>, <<"123456789012345">>}, {<<"password2">>, <<"asdasdasdasdasdasd">>}]}
 
 5> Input1 = [{<<"password1">>, <<"1234">>}, {<<"password2">>, <<"asdasd">>}].
 
 6> olifer:validate(Input1, Rules).
-[{<<"password1">>, <<"WEAK_PSSSWORD">>}, {<<"password2">>, <<"WEAK_PSSSWORD">>}]
+{errors, [{<<"password1">>, <<"WEAK_PSSSWORD">>}, {<<"password2">>, <<"WEAK_PSSSWORD">>}]}
 ```
