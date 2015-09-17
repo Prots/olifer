@@ -1,0 +1,19 @@
+{
+    "send_message": [ "required", { "list_of_objects": {
+        "id": [ "not_empty", { "max_length": 64 }, { "like":"^[A-Za-z_0-9]{1,64}$" } ],
+        "dst_addr": [ "required", "not_empty", { "like":"^\\+(380[0-9]{9}|[1-9][0-9]{7,14})$" } ],
+        "category": [ "not_empty", { "max_length": 64 }, { "like":"^[A-Za-z_0-9]{1,64}$" } ],
+        "channels_priority": [ "required", { "list_of_objects": {
+            "channel": [ "required", { "one_of":["sms", "viber", "push", "weber"] } ],
+            "src_addr": [ "not_empty", { "length_between": [ 0, 20 ] } ],
+            "app": [ "not_empty" ],
+            "max_attempts":[ "not_empty", "positive_integer" ],
+            "translit": [ "not_empty", { "one_of":["true", "false"] } ]
+        } }],
+        "expires": ["not_empty" ],
+        "message_template": [ "required", { "list_of_objects" : {
+            "text":[ "not_empty" ],
+            "password":[ "not_empty", { "number_between": [ 2, 16 ] } ]
+        } } ]
+    } } ]
+}

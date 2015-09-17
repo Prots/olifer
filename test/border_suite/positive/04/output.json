@@ -1,0 +1,26 @@
+{
+    "send_message":[
+        {
+            "id":"asdadadsas",
+            "dst_addr":"+380969747359",
+            "category":"qwerty",
+            "channels_priority":[
+                {"channel":"weber", "src_addr":"i.privatbank.ua"},
+                {"channel":"push", "app":"privat24"},
+                {"channel":"sms", "src_addr":"3700", "translit":"true"}
+            ],
+            "expires":"2015-06-08 22:22:00",
+            "message_template":[
+                {"text":"Пароль: "},
+                {"password":"2"},
+                {"text":"-"},
+                {"password":"2"},
+                {"text":"-"},
+                {"password":"2"},
+                {"text":"-"},
+                {"password":"2"}
+            ]
+
+        }
+    ]
+}

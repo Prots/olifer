@@ -11,9 +11,11 @@
 -export([validate_data/2]).
 
 %% LIVR API
-validate([], _Rules) ->
-    {ok, []};
-validate([{}], _Rules) ->
+validate([], []) ->
+    {ok, [{}]};
+validate([{}], []) ->
+    {ok, [{}]};
+validate(_Data, [{}]) ->
     {ok, [{}]};
 validate(Data, Rules) when is_list(Data), is_list(Rules) ->
     FieldsList = validate_data(Data, Rules),
@@ -78,7 +80,9 @@ prepare(DataPropList, RulesPropList) ->
 
 prepare(_DataPropList, _AllData, [], Acc) ->
     Acc;
-prepare([], AllData, [{FieldName, FieldRules}|RestRules], Acc) ->
+prepare(_DataPropList, _AllData, [{}], Acc) ->
+    Acc;
+prepare(DataPropList, AllData, [{FieldName, FieldRules}|RestRules], Acc) when DataPropList =:= []; DataPropList =:= [{}] ->
     case has_spec_rule(FieldRules) of
         true -> prepare([], AllData, RestRules, [#field{name = FieldName, input= <<>>, rules = FieldRules}|Acc]);
         false -> prepare([], AllData, RestRules, Acc)
@@ -185,7 +189,6 @@ rule_to_atom(<<"remove">>) ->                       {olifer_filter, remove};
 rule_to_atom(<<"leave_only">>) ->                   {olifer_filter, leave_only};
 rule_to_atom(_) ->                                  undefined.
 
-%% TODO this is fucking hack, but without it 'required' and 'not_empty_list' rules doesn't work!!!
 has_spec_rule(FieldRules) ->
     has_spec_rule(FieldRules, ?SPEC_RULES).
 
