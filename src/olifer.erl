@@ -148,15 +148,19 @@ apply_aliased_rules(Field, RuleName, AllData) ->
 apply_registered_rules(Field, RuleName, Args) ->
     case lookup_rules(RuleName) of
         undefined ->
-            undefined;
+            {undefined, RuleName};
         {RuleName, Module, Function} ->
             erlang:apply(Module, Function, [Field#field.input, Args])
     end.
 
-process_result(undefined, Input) -> {Input, Input, []};
-process_result({filter, Output}, _) -> {Output, Output, []};
-process_result({ok, Output}, Input) -> {Input, Output, []};
-process_result({error, Error}, Input) -> {Input, Error, Error}.
+process_result({undefined, RuleName}, Input) ->
+    {Input, Input, <<"Rule '", RuleName/binary,  "' not_registered">>};
+process_result({filter, Output}, _) ->
+    {Output, Output, []};
+process_result({ok, Output}, Input) ->
+    {Input, Output, []};
+process_result({error, Error}, Input) ->
+    {Input, Error, Error}.
 
 rule_to_atom(<<"required">>) ->                     {olifer_common, required};
 rule_to_atom(<<"not_empty">>) ->                    {olifer_common, not_empty};
