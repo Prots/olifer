@@ -1,0 +1,7 @@
+{
+  "id": "323232121133232",
+  "src_addr": "i.privatbank.ua",
+  "dst_addr": "+380993794067",
+  "message_template": [{"text":"hello!"}, {"text":"hello!"}]
+}
+

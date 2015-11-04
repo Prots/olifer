@@ -32,7 +32,7 @@ list_of(_Value, _Args, _) ->
 list_of_objects(<<>> = Value, _Args, _) ->
     {ok, Value};
 list_of_objects(Values, [Args], AllData) when is_list(Values) ->
-    list_of(Values, Args, AllData);
+    list_of_objects(Values, Args, AllData);
 list_of_objects(Values, Args, _) when is_list(Values) ->
     ListOfObjects = pred_processing(list_of_objects, Values, Args, []),
     ObjFieldsList = [olifer:validate_data(DataPropList, RulesPropList) || {DataPropList, RulesPropList} <- ListOfObjects],
@@ -43,7 +43,7 @@ list_of_objects(_Value, _Args, _) ->
 list_of_different_objects(<<>> = Value, _Args, _) ->
     {ok, Value};
 list_of_different_objects(Values, [Args], AllData) when is_list(Values) ->
-    list_of(Values, Args, AllData);
+    list_of_different_objects(Values, Args, AllData);
 list_of_different_objects(Values, Args, _) when is_list(Values) ->
     ListOfObjects = pred_processing(list_of_different_objects, Values, Args, []),
     ObjFieldsList = [olifer:validate_data(DataPropList, RulesPropList) || {DataPropList, RulesPropList} <- ListOfObjects],
@@ -64,8 +64,10 @@ pred_processing(list_of, [Value|Rest], Args, DataList, RulesList) ->
 
 pred_processing(list_of_objects, [], _, Acc) ->
     Acc;
-pred_processing(list_of_objects, [Value|Rest], Args, Acc) ->
+pred_processing(list_of_objects, [Value|Rest], Args, Acc) when is_list(Args) ->
     pred_processing(list_of_objects, Rest, Args, [{Value, Args}|Acc]);
+pred_processing(list_of_objects, [Value|Rest], Args, Acc) ->
+    pred_processing(list_of_objects, Rest, Args, [{Value, [Args]}|Acc]);
 
 pred_processing(list_of_different_objects, [], _, Acc) ->
     Acc;

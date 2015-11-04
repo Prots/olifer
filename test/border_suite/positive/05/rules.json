@@ -1,0 +1,9 @@
+{
+  "id": [ "required", { "max_length": 64 }, { "like":"^[A-Za-z_0-9]{1,64}$" } ],
+  "src_addr": [ "required", "not_empty", { "like":"^[A-Za-z_.0-9]{1,64}$" } ],
+  "dst_addr": [ "required", "not_empty", { "like":"^\\+(380[0-9]{9}|[1-9][0-9]{7,14})$" } ],
+  "category": [ "not_empty", { "max_length": 64 }, { "like":"^[A-Za-z_0-9]{1,64}$" } ],
+  "message_template": [ "required", { "list_of_objects" :
+    { "text": "not_empty" }
+  } ]
+}
