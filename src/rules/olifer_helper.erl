@@ -72,11 +72,11 @@ pred_processing(list_of_objects, [Value|Rest], Args, Acc) ->
 pred_processing(list_of_different_objects, [], _, Acc) ->
     Acc;
 pred_processing(list_of_different_objects, [Object|Rest], [FieldType, TypeRules] = Args, Acc) when is_list(Object) ->
-    ObjectType = proplists:get_value(FieldType, Object),
-    RulesPropList = proplists:get_value(ObjectType, TypeRules),
+    ObjectType = olifer:get_value(FieldType, Object),
+    RulesPropList = olifer:get_value(ObjectType, TypeRules),
     pred_processing(list_of_different_objects, Rest, Args, [{Object, RulesPropList}|Acc]);
 pred_processing(list_of_different_objects, [Object|Rest], [_FieldType, TypeRules] = Args, Acc)  ->
-    RulesPropList = proplists:get_value(undefined, TypeRules),
+    RulesPropList = olifer:get_value(undefined, TypeRules),
     pred_processing(list_of_different_objects, Rest, Args, [{Object, RulesPropList}|Acc]).
 
 post_processing(nested_object, FieldsList) ->

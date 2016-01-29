@@ -9,6 +9,7 @@
 %% FOR INTERNAL USAGE
 -export([start/0, stop/0]).
 -export([validate_data/2]).
+-export([get_value/2]).
 
 %% LIVR API
 validate([], []) ->
@@ -32,6 +33,17 @@ register_aliased_rule(Aliases) when is_list(Aliases) ->
     register_aliases(Aliases).
 
 %% FOR INTERNAL USAGE
+get_value(Key, List) when is_list(List) ->
+    get_value(Key, List, undefined);
+get_value(_, _) ->
+    undefined.
+
+get_value(Key, List, Default)->
+    case lists:keyfind(Key, 1, List) of
+        {_, Val} -> Val;
+        _        -> Default
+    end.
+
 start() ->
     start(?MODULE).
 
@@ -57,9 +69,9 @@ return_result([Field|Rest], AccOk, AccErr) ->
 register_aliases([]) ->
     ok;
 register_aliases([Alias|Rest]) ->
-    Name = proplists:get_value(<<"name">>, Alias),
-    Rules = proplists:get_value(<<"rules">>, Alias),
-    ErrorCode = proplists:get_value(<<"error">>, Alias),
+    Name = olifer:get_value(<<"name">>, Alias),
+    Rules = olifer:get_value(<<"rules">>, Alias),
+    ErrorCode = olifer:get_value(<<"error">>, Alias),
     true = ets:insert(?ALIASES_TBL, {Name, Rules, ErrorCode}),
     register_aliases(Rest).
 

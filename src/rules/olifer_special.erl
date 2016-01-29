@@ -46,7 +46,7 @@ equal_to_field(<<>> = Value, _Args, _) ->
 equal_to_field(Value, [FieldName], AllData) when is_binary(Value); is_integer(Value); is_float(Value) ->
     equal_to_field(Value, FieldName, AllData);
 equal_to_field(Value, FieldName, AllData) when is_binary(Value); is_integer(Value); is_float(Value) ->
-    FieldValue = proplists:get_value(FieldName, AllData),
+    FieldValue = olifer:get_value(FieldName, AllData),
     case Value =:= FieldValue of
         true -> {ok, Value};
         false -> {error, ?FIELDS_NOT_EQUAL}
