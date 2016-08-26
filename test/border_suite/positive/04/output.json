@@ -12,13 +12,13 @@
             "expires":"2015-06-08 22:22:00",
             "message_template":[
                 {"text":"Пароль: "},
-                {"password":"2"},
+                {"password":2},
                 {"text":"-"},
-                {"password":"2"},
+                {"password":2},
                 {"text":"-"},
-                {"password":"2"},
+                {"password":2},
                 {"text":"-"},
-                {"password":"2"}
+                {"password":2}
             ]
 
         }

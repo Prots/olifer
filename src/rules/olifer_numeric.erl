@@ -20,7 +20,7 @@ integer(Value, [], _) when is_integer(Value) ->
 integer(Value, [], _) when is_binary(Value) ->
     case binary_to_int(Value) of
         error -> {error, ?NOT_INTEGER};
-        {ok, _} -> {ok, Value}
+        {ok, IntValue} -> {ok, IntValue}
     end;
 integer(Value, [], _) when is_float(Value) ->
     {error, ?NOT_INTEGER};
@@ -36,7 +36,7 @@ positive_integer(Value, [], _) when is_integer(Value), Value =< 0 ->
 positive_integer(Value, [], _) when is_binary(Value) ->
     case binary_to_int(Value) of
         error -> {error, ?NOT_POSITIVE_INTEGER};
-        {ok, IntValue} when IntValue > 0 -> {ok, Value};
+        {ok, IntValue} when IntValue > 0 -> {ok, IntValue};
         _ -> {error, ?NOT_POSITIVE_INTEGER}
     end;
 positive_integer(Value, [], _) when is_float(Value) ->
@@ -51,7 +51,7 @@ decimal(Value, [], _) when is_float(Value) ->
 decimal(Value, [], _) when is_binary(Value) ->
     case binary_to_flt(Value) of
         error -> {error, ?NOT_DECIMAL};
-        {ok, _} -> {ok, Value}
+        {ok, FltValue} -> {ok, FltValue}
     end;
 decimal(Value, [], _) when is_integer(Value) ->
     {error, ?NOT_DECIMAL};
@@ -67,7 +67,7 @@ positive_decimal(Value, [], _) when is_float(Value), Value =< 0 ->
 positive_decimal(Value, [], _) when is_binary(Value) ->
     case binary_to_flt(Value) of
         error -> {error, ?NOT_POSITIVE_DECIMAL};
-        {ok, FltValue} when FltValue > 0 -> {ok, Value};
+        {ok, FltValue} when FltValue > 0 -> {ok, FltValue};
         _ -> {error, ?NOT_POSITIVE_DECIMAL}
     end;
 positive_decimal(Value, [], _) when is_integer(Value) ->
@@ -87,9 +87,9 @@ max_number(Value, MaxNumber, _) when is_binary(Value) ->
     IntRes = binary_to_int(Value),
     FltRes = binary_to_flt(Value),
     case {IntRes, FltRes} of
-        {error, error} -> ?FORMAT_ERROR;
-        {{ok, IntValue}, _} when IntValue =< MaxNumber -> {ok, Value};
-        {_, {ok, FltValue}} when FltValue =< MaxNumber -> {ok, Value};
+        {error, error} -> {error, ?NOT_NUMBER};
+        {{ok, IntValue}, _} when IntValue =< MaxNumber -> {ok, IntValue};
+        {_, {ok, FltValue}} when FltValue =< MaxNumber -> {ok, FltValue};
         _ -> {error, ?TOO_HIGH}
     end;
 max_number(_Value, _Args, _) ->
@@ -107,9 +107,9 @@ min_number(Value, MinNumber, _) when is_binary(Value) ->
     IntRes = binary_to_int(Value),
     FltRes = binary_to_flt(Value),
     case {IntRes, FltRes} of
-        {error, error} -> ?FORMAT_ERROR;
-        {{ok, IntValue}, _} when IntValue >= MinNumber -> {ok, Value};
-        {_, {ok, FltValue}} when FltValue >= MinNumber -> {ok, Value};
+        {error, error} -> {error, ?NOT_NUMBER};
+        {{ok, IntValue}, _} when IntValue >= MinNumber -> {ok, IntValue};
+        {_, {ok, FltValue}} when FltValue >= MinNumber -> {ok, FltValue};
         _ -> {error, ?TOO_LOW}
     end;
 min_number(_Value, _Args, _) ->
@@ -130,12 +130,13 @@ number_between(Value, [MinNumber, MaxNumber], _) when is_binary(Value) ->
     IntRes = binary_to_int(Value),
     FltRes = binary_to_flt(Value),
     case {IntRes, FltRes} of
-        {error, error} -> ?FORMAT_ERROR;
+        {error, error} -> {error, ?NOT_NUMBER};
         {{ok, IntValue}, _} when IntValue > MaxNumber -> {error, ?TOO_HIGH};
         {{ok, IntValue}, _} when IntValue < MinNumber -> {error, ?TOO_LOW};
         {_, {ok, FltValue}} when FltValue > MaxNumber -> {error, ?TOO_HIGH};
         {_, {ok, FltValue}} when FltValue < MinNumber -> {error, ?TOO_LOW};
-        _ -> {ok, Value}
+        {{ok, IntValue}, _} -> {ok, IntValue};
+        {_, {ok, FltValue}} -> {ok, FltValue}
     end;
 number_between(_Value, _Args, _) ->
     {error, ?FORMAT_ERROR}.
@@ -159,7 +160,7 @@ binary_to_flt(Value) ->
             catch
                 _:_ ->
                     try
-                        FltValue1 = binary_to_float(<<Value/binary, ".0">>),
+                        FltValue1 = binary_to_integer(Value),
                         {ok, FltValue1}
                     catch
                         _:_ -> error

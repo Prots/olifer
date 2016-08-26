@@ -1,0 +1,10 @@
+{
+  "request_id": [ "required", { "max_length": 64 }],
+  "type": [ "required", {"one_of": [["3"]]} ],
+  "prelogin_request_id": [ "required", { "max_length": 64 }],
+  "captcha_token": [ "required", { "max_length": 64 }],
+  "captcha_result": [ "required", { "max_length": 64 }],
+  "login": "required",
+  "encrypted_password": "required",
+  "aid" : "required"
+}

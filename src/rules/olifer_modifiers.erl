@@ -1,14 +1,17 @@
--module(olifer_filter).
+-module(olifer_modifiers).
 -author("prots.igor@gmail.com").
 
 -include("olifer.hrl").
 
 %% API
--export([trim/3]).
--export([to_uc/3]).
--export([to_lc/3]).
--export([remove/3]).
--export([leave_only/3]).
+-export([
+    trim/3,
+    to_uc/3,
+    to_lc/3,
+    remove/3,
+    leave_only/3,
+    default/3
+]).
 
 %% API
 trim(Value, [], _) when is_binary(Value) ->
@@ -38,6 +41,17 @@ leave_only(Value, [Pattern], AllData) ->
 leave_only(Value, Pattern, _)  when is_binary(Value), is_binary(Pattern)->
     leave_only_impl(Value, Pattern, <<>>);
 leave_only(Value, _, _) ->
+    {filter, Value}.
+
+default(<<>>, [[]], _AllData) ->
+    {filter, []};
+default(<<>>, [{}], _AllData) ->
+    {filter, [{}]};
+default(<<>>, [Default], _AllData) ->
+    {filter, Default};
+default(<<>>, Default, _AllData) ->
+    {filter, Default};
+default(Value, _Default, _AllData) ->
     {filter, Value}.
 
 %% INTERNAL
