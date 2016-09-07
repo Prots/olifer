@@ -1,7 +1,7 @@
 {application, olifer,
  [
   {description, "An Erlang LIVR implementation library"},
-  {vsn, "0.4.2"},
+  {vsn, "2.0.1"},
   {modules, [
              olifer
             ]},
