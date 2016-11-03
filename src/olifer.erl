@@ -98,9 +98,10 @@ prepare(DataPropList, AllData, [{FieldName, FieldRules} | RestRules], Acc) ->
     case lists:keyfind(FieldName, 1, DataPropList) of
         false ->
             case has_spec_rule(FieldRules) of
-                true ->
-                    prepare(DataPropList, AllData, RestRules, [#field{name = FieldName, input = <<>>, rules = FieldRules} | Acc]);
-                false -> prepare(DataPropList, AllData, RestRules, Acc)
+                false ->
+                    prepare(DataPropList, AllData, RestRules, Acc);
+                SpecRulesList ->
+                    prepare(DataPropList, AllData, RestRules, [#field{name = FieldName, input = <<>>, rules = SpecRulesList} | Acc])
             end;
         {FieldName, FieldData} ->
             prepare(DataPropList, AllData, RestRules, [#field{name = FieldName, input = FieldData, rules = FieldRules} | Acc])
@@ -219,27 +220,31 @@ rule_to_atom(<<"default">>) -> {olifer_modifiers, default};
 
 rule_to_atom(_) -> undefined.
 
+has_spec_rule([FieldRules]) when is_list(FieldRules) ->
+    has_spec_rule(FieldRules);
 has_spec_rule(FieldRules) ->
-    has_spec_rule(FieldRules, ?SPEC_RULES).
+    has_spec_rule(FieldRules, ?SPEC_RULES, []).
 
-has_spec_rule(_FieldRules, []) ->
+has_spec_rule(_FieldRules, [], []) ->
     false;
-has_spec_rule(FieldRules, [Type | RestTypes]) ->
+has_spec_rule(_FieldRules, [], Acc) ->
+    Acc;
+has_spec_rule(FieldRules, [Type | RestTypes], Acc) ->
     case has_rule(FieldRules, Type) of
-        true -> true;
-        _ -> has_spec_rule(FieldRules, RestTypes)
+        {true, FieldRule} -> has_spec_rule(FieldRules, RestTypes, [FieldRule|Acc]);
+        _ -> has_spec_rule(FieldRules, RestTypes, Acc)
     end.
 
 has_rule(Type, Type) ->
-    true;
+    {true, Type};
 has_rule([], _Type) ->
     false;
 has_rule([Type | _Rest], Type) ->
-    true;
-has_rule([{Type, _} | _Rest], Type) ->
-    true;
-has_rule([[{Type, _}] | _Rest], Type) ->
-    true;
+    {true, Type};
+has_rule([{Type, _} = Rule| _Rest], Type) ->
+    {true, Rule};
+has_rule([[{Type, _} = Rule] | _Rest], Type) ->
+    {true, Rule};
 has_rule([_ | Rest], Type) ->
     has_rule(Rest, Type);
 has_rule(_, _) ->

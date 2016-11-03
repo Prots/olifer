@@ -1,0 +1,15 @@
+{
+  "action": ["required", {"max_length":30}],
+  "templateId": [{"max_length":150}],
+  "templateName": [{"max_length":200}],
+  "templateType": [{"max_length":30}],
+  "templateCardId": "string",
+  "templateAmount": "string",
+  "templateParams": [{
+    "default":{},
+    "list_of_objects": {
+      "name": ["required",{"max_length":50}],
+      "value": ["required",{"max_length":300}]
+    }
+  }]
+}
