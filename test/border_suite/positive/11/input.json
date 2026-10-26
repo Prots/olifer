@@ -1,0 +1,9 @@
+{
+  "u1": "https://uk.wikipedia.org/wiki/Київ",
+  "u2": "http://example.com/search?q=a|b",
+  "u3": "http://example.com/#a#b",
+  "u4": "http://localhost:8080/x",
+  "u5": "http://例子.测试",
+  "u6": "HTTP://EXAMPLE.COM/{x}",
+  "u7": "http://user:pass@example.com:8080/"
+}

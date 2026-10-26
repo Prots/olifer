@@ -5,6 +5,9 @@
 -define(RULES_TBL, olifer_user_rules).
 -define(ALIASES_TBL, olifer_user_aliases).
 
+%% Whitespace of JavaScript's trim() and \s, for regular expressions with the unicode option
+-define(WHITESPACE, "\\t\\n\\x{0B}\\f\\r \\x{A0}\\x{1680}\\x{2000}-\\x{200A}\\x{2028}\\x{2029}\\x{202F}\\x{205F}\\x{3000}\\x{FEFF}").
+
 -define(SPEC_RULES, [<<"required">>, <<"not_empty_list">>, <<"default">>]).
 
 %% BASIC RULES ERRORS

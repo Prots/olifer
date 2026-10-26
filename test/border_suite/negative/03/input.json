@@ -1,0 +1,8 @@
+{
+  "u1": "http://example.com:",
+  "u2": "http://example",
+  "u3": "http://256.1.1.1",
+  "u4": "http://example.com:123456",
+  "u5": "ftp://example.com",
+  "u6": "http://exa_mple.com"
+}
