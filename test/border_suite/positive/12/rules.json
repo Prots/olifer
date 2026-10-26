@@ -1,0 +1,13 @@
+{
+  "settings": {
+    "default": {
+      "theme": "dark"
+    }
+  },
+  "limits": {
+    "default": {
+      "min": 1,
+      "max": 10
+    }
+  }
+}

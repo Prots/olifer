@@ -9,7 +9,9 @@
 %% FOR INTERNAL USAGE
 -export([start/0, stop/0]).
 -export([validate_data/2]).
+-export([validate_value/2]).
 -export([get_value/2]).
+-export([to_binary/1]).
 
 %% LIVR API
 validate([], []) ->
@@ -44,6 +46,19 @@ get_value(Key, List, Default) ->
         _ -> Default
     end.
 
+%% Primitive value (string, number or boolean) as a string, like JavaScript's String() does it.
+%% Returns undefined for other values (objects, lists, null).
+to_binary(Value) when is_binary(Value) ->
+    Value;
+to_binary(Value) when is_integer(Value) ->
+    integer_to_binary(Value);
+to_binary(Value) when is_float(Value) ->
+    list_to_binary(float_to_string(Value));
+to_binary(Value) when is_boolean(Value) ->
+    atom_to_binary(Value, utf8);
+to_binary(_Value) ->
+    undefined.
+
 start() ->
     start(?MODULE).
 
@@ -52,11 +67,62 @@ stop() ->
 
 validate_data(DataPropList, RulesPropList) when is_list(DataPropList), is_list(RulesPropList) ->
     ListOfFields = prepare(DataPropList, RulesPropList),
-    lists:reverse([apply_rules(Field, DataPropList) || Field <- ListOfFields]);
+    lists:reverse([Field || Field <- [apply_rules(F, DataPropList) || F <- ListOfFields],
+                            not is_still_missing(Field)]);
 validate_data(Data, Rules) ->
     [#field{name = Data, input = Data, rules = Rules, output = ?FORMAT_ERROR, errors = ?FORMAT_ERROR}].
 
+%% Applies the rules to one value, for meta rules like "or".
+%% HasValue tells whether a rule gave the value an output (a modifier like "default" always does).
+validate_value(Value, Rules) ->
+    Field = #field{name = value, input = Value, rules = Rules, output = Value, errors = [], missing = true},
+    case apply_rules(Field, [{value, Value}]) of
+        #field{errors = [], output = Output, missing = Missing} -> {ok, Output, not Missing};
+        #field{errors = Errors} -> {error, Errors}
+    end.
+
 %% INTERNAL
+%% Number.prototype.toString() of JavaScript: the shortest digits that give the same float,
+%% with an exponent below 1e-6 and from 1e21: 1.2 -> "1.2", 1.0e21 -> "1e+21", 1.0e-7 -> "1e-7"
+float_to_string(Value) when Value == 0 ->
+    "0";
+float_to_string(Value) ->
+    {Mantissa, Exp} = case string:split(io_lib_format:fwrite_g(abs(Value)), "e") of
+        [M, E] -> {M, list_to_integer(E)};
+        [M] -> {M, 0}
+    end,
+    [Int, Frac] = string:split(Mantissa, "."),
+    %% Value = 0.Digits * 10^Point
+    {Digits, Point} = strip_leading_zeros(Int ++ Frac, length(Int) + Exp),
+    Sign = case Value < 0 of
+        true -> "-";
+        false -> ""
+    end,
+    Sign ++ format_digits(string:trim(Digits, trailing, "0"), Point).
+
+strip_leading_zeros([$0 | Digits], Point) ->
+    strip_leading_zeros(Digits, Point - 1);
+strip_leading_zeros(Digits, Point) ->
+    {Digits, Point}.
+
+format_digits(Digits, Point) when length(Digits) =< Point, Point =< 21 ->
+    Digits ++ lists:duplicate(Point - length(Digits), $0);
+format_digits(Digits, Point) when 0 < Point, Point =< 21 ->
+    {Int, Frac} = lists:split(Point, Digits),
+    Int ++ "." ++ Frac;
+format_digits(Digits, Point) when -6 < Point, Point =< 0 ->
+    "0." ++ lists:duplicate(-Point, $0) ++ Digits;
+format_digits([First | Rest], Point) ->
+    Mantissa = case Rest of
+        [] -> [First];
+        _ -> [First, $. | Rest]
+    end,
+    ExpSign = case Point > 0 of
+        true -> "+";
+        false -> "-"
+    end,
+    Mantissa ++ "e" ++ ExpSign ++ integer_to_list(abs(Point - 1)).
+
 return_result([], AccOk, []) ->
     {ok, AccOk};
 return_result([], _, AccErr) ->
@@ -65,6 +131,13 @@ return_result([#field{errors = []} = Field | Rest], AccOk, AccErr) ->
     return_result(Rest, [{Field#field.name, Field#field.output} | AccOk], AccErr);
 return_result([Field | Rest], AccOk, AccErr) ->
     return_result(Rest, AccOk, [{Field#field.name, Field#field.errors} | AccErr]).
+
+%% A missing field (it is validated when it has rules like "required" or "or")
+%% stays missing, unless a rule (like "default") gives it a value
+is_still_missing(#field{errors = [], missing = true}) ->
+    true;
+is_still_missing(_Field) ->
+    false.
 
 register_aliases([]) ->
     ok;
@@ -101,7 +174,7 @@ prepare(DataPropList, AllData, [{FieldName, FieldRules} | RestRules], Acc) ->
                 false ->
                     prepare(DataPropList, AllData, RestRules, Acc);
                 SpecRulesList ->
-                    prepare(DataPropList, AllData, RestRules, [#field{name = FieldName, input = <<>>, rules = SpecRulesList} | Acc])
+                    prepare(DataPropList, AllData, RestRules, [#field{name = FieldName, input = <<>>, rules = SpecRulesList, missing = true} | Acc])
             end;
         {FieldName, FieldData} ->
             prepare(DataPropList, AllData, RestRules, [#field{name = FieldName, input = FieldData, rules = FieldRules} | Acc])
@@ -110,16 +183,19 @@ prepare(DataPropList, AllData, [{FieldName, FieldRules} | RestRules], Acc) ->
 apply_rules(#field{rules = []} = Field, _AllData) ->
     Field;
 apply_rules(#field{rules = {Rule, Args}} = Field, AllData) ->
-    {NewInp, Output, Errors} = apply_one_rule(Field, {Rule, Args}, AllData),
-    apply_rules(Field#field{input = NewInp, rules = [], output = Output, errors = Errors}, AllData);
+    {NewInp, Output, Errors, HasValue} = apply_one_rule(Field, {Rule, Args}, AllData),
+    apply_rules(Field#field{input = NewInp, rules = [], output = Output, errors = Errors,
+                            missing = Field#field.missing andalso not HasValue}, AllData);
 apply_rules(#field{rules = Rule} = Field, AllData) when is_binary(Rule) ->
-    {NewInp, Output, Errors} = apply_one_rule(Field, {Rule, []}, AllData),
-    apply_rules(Field#field{input = NewInp, rules = [], output = Output, errors = Errors}, AllData);
+    {NewInp, Output, Errors, HasValue} = apply_one_rule(Field, {Rule, []}, AllData),
+    apply_rules(Field#field{input = NewInp, rules = [], output = Output, errors = Errors,
+                            missing = Field#field.missing andalso not HasValue}, AllData);
 apply_rules(#field{rules = [Rule | Rest]} = Field, AllData) ->
     case apply_one_rule(Field, Rule, AllData) of
-        {NewInp, Output, []} ->
-            apply_rules(Field#field{rules = Rest, input = NewInp, output = Output, errors = []}, AllData);
-        {_, Error, Error} -> apply_rules(Field#field{rules = [], output = Error, errors = Error}, AllData)
+        {NewInp, Output, [], HasValue} ->
+            apply_rules(Field#field{rules = Rest, input = NewInp, output = Output, errors = [],
+                                    missing = Field#field.missing andalso not HasValue}, AllData);
+        {_, Error, Error, _} -> apply_rules(Field#field{rules = [], output = Error, errors = Error}, AllData)
     end.
 
 apply_one_rule(Field, Rule, AllData) when is_binary(Rule) ->
@@ -148,15 +224,21 @@ apply_aliased_rules(Field, RuleName, AllData) ->
             undefined;
         {RuleName, Rules, undefined} ->
             case apply_rules(Field#field{rules = Rules, errors = []}, AllData) of
-                #field{errors = []} = NewField -> {ok, NewField#field.output};
+                #field{errors = []} = NewField -> alias_result(Field, NewField);
                 NewField -> {error, NewField#field.errors}
             end;
         {RuleName, Rules, Error} ->
             case apply_rules(Field#field{rules = Rules, errors = []}, AllData) of
-                #field{errors = []} = NewField -> {ok, NewField#field.output};
+                #field{errors = []} = NewField -> alias_result(Field, NewField);
                 _ -> {error, Error}
             end
     end.
+
+%% A missing field gets a value when a rule of the alias (like "default") gives it one
+alias_result(#field{missing = true}, #field{missing = false, output = Output}) ->
+    {filter, Output};
+alias_result(_Field, NewField) ->
+    {ok, NewField#field.output}.
 
 apply_registered_rules(Field, RuleName, Args) ->
     case lookup_rules(RuleName) of
@@ -166,14 +248,16 @@ apply_registered_rules(Field, RuleName, Args) ->
             erlang:apply(Module, Function, [Field#field.input, Args])
     end.
 
+%% {NewInput, Output, Errors, HasValue}: HasValue tells whether the rule gave the field a value
+%% (a modifier always does, a validator only when it changes the value)
 process_result({undefined, RuleName}, Input) ->
-    {Input, Input, <<"Rule '", RuleName/binary, "' not_registered">>};
+    {Input, Input, <<"Rule '", RuleName/binary, "' not_registered">>, false};
 process_result({filter, Output}, _) ->
-    {Output, Output, []};
+    {Output, Output, [], true};
 process_result({ok, Output}, Input) ->
-    {Input, Output, []};
+    {Input, Output, [], Output =/= Input};
 process_result({error, Error}, Input) ->
-    {Input, Error, Error};
+    {Input, Error, Error, false};
 process_result(Unexpected, Input) ->
     ct:print("Unexpected: ~p~nInput:~p~n", [Unexpected, Input]).
 
@@ -220,34 +304,33 @@ rule_to_atom(<<"default">>) -> {olifer_modifiers, default};
 
 rule_to_atom(_) -> undefined.
 
+%% The rules of a missing field in their order: the rules that can fail or give it a value
+%% (?SPEC_RULES) and aliases. Other rules skip a missing value.
 has_spec_rule([FieldRules]) when is_list(FieldRules) ->
     has_spec_rule(FieldRules);
 has_spec_rule(FieldRules) ->
-    has_spec_rule(FieldRules, ?SPEC_RULES, []).
-
-has_spec_rule(_FieldRules, [], []) ->
-    false;
-has_spec_rule(_FieldRules, [], Acc) ->
-    Acc;
-has_spec_rule(FieldRules, [Type | RestTypes], Acc) ->
-    case has_rule(FieldRules, Type) of
-        {true, FieldRule} -> has_spec_rule(FieldRules, RestTypes, [FieldRule|Acc]);
-        _ -> has_spec_rule(FieldRules, RestTypes, Acc)
+    case [Rule || Rule <- rules_list(FieldRules), is_spec_rule(rule_name(Rule))] of
+        [] -> false;
+        SpecRules -> SpecRules
     end.
 
-has_rule(Type, Type) ->
-    {true, Type};
-has_rule([], _Type) ->
-    false;
-has_rule([Type | _Rest], Type) ->
-    {true, Type};
-has_rule([{Type, _} = Rule| _Rest], Type) ->
-    {true, Rule};
-has_rule([[{Type, _} = Rule] | _Rest], Type) ->
-    {true, Rule};
-has_rule([_ | Rest], Type) ->
-    has_rule(Rest, Type);
-has_rule(_, _) ->
+%% A list of rules or a rule with arguments ([{Name, Args}]), or a rule name
+rules_list(FieldRules) when is_list(FieldRules) ->
+    FieldRules;
+rules_list(FieldRule) ->
+    [FieldRule].
+
+rule_name({Name, _Args}) ->
+    Name;
+rule_name([{Name, _Args}]) ->
+    Name;
+rule_name(Name) ->
+    Name.
+
+is_spec_rule(Name) when is_binary(Name) ->
+    lists:member(Name, ?SPEC_RULES)
+        orelse (rule_to_atom(Name) =:= undefined andalso lookup_alias(Name) =/= undefined);
+is_spec_rule(_Name) ->
     false.
 
 start(AppName) ->

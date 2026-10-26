@@ -1,0 +1,20 @@
+{
+  "email": "required_email",
+  "name": [
+    "required",
+    {
+      "default": "x"
+    }
+  ],
+  "id": [
+    {
+      "default": "abc"
+    },
+    {
+      "or": [
+        "email",
+        "positive_integer"
+      ]
+    }
+  ]
+}

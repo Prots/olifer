@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    name: OTP ${{ matrix.otp }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        otp: ['24', '25', '26', '27', '28', '29']
+    steps:
+      - uses: actions/checkout@v7
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: ${{ matrix.otp }}
+      - run: make
+      - run: make tests
+
+  # setup-beam has no builds of OTP 21-23 for the current Ubuntu runners
+  test-old-otp:
+    name: OTP ${{ matrix.otp }}
+    runs-on: ubuntu-latest
+    container: erlang:${{ matrix.otp }}
+    strategy:
+      fail-fast: false
+      matrix:
+        otp: ['21', '22', '23']
+    steps:
+      - uses: actions/checkout@v7
+      - run: make
+      - run: make tests

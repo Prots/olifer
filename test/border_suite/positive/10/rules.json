@@ -1,0 +1,17 @@
+{
+  "nbsp": "trim",
+  "ideographic": "trim",
+  "bom": "trim",
+  "vtab": "trim",
+  "crlf": "trim",
+  "next_line": "trim",
+  "lrm": "trim",
+  "lc": "to_lc",
+  "uc": "to_uc",
+  "removed": {
+    "remove": "ąб"
+  },
+  "left": {
+    "leave_only": "Ą"
+  }
+}

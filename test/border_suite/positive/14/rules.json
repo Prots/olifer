@@ -1,0 +1,14 @@
+{
+  "email": {
+    "or": "email"
+  },
+  "id": {
+    "or": [
+      {
+        "nested_object": {
+          "id": "required"
+        }
+      }
+    ]
+  }
+}

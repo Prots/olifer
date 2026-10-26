@@ -21,74 +21,39 @@ string(<<>> = Value, _Args, _) ->
 string(Value, _Args, _) when is_binary(Value) ->
     {ok, Value};
 string(Value, _Args, _) when is_float(Value) ->
-    {ok, float_to_binary(Value)};
+    {ok, olifer:to_binary(Value)};
 string(Value, _Args, _) when is_integer(Value) ->
     {ok, integer_to_binary(Value)};
+string(Value, _Args, _) when is_boolean(Value) ->
+    {ok, olifer:to_binary(Value)};
 string(_Value, _Args, _) ->
     {error, ?FORMAT_ERROR}.
 
 eq(<<>> = Value, _Args, _) ->
     {ok, Value};
 eq(Value, [Equivalent], AllData) ->
-    eq(Value, [Equivalent], AllData);
-eq(Value, Value, _) ->
-    {ok, Value};
-eq(Value, Equivalent, _) when is_float(Value) and is_binary(Equivalent) ->
-    case float_to_binary(Value) of
-        Equivalent -> {ok, Equivalent};
-        _ -> {error, ?NOT_ALLOWED_VALUE}
-    end;
-eq(Value, Equivalent, _) when is_integer(Value) and is_binary(Equivalent) ->
-    case integer_to_binary(Value) of
-        Equivalent -> {ok, Equivalent};
-        _ -> {error, ?NOT_ALLOWED_VALUE}
-    end;
-eq(Value, Equivalent, _) when is_binary(Value) and is_float(Equivalent) ->
-    case float_to_binary(Equivalent) of
-        Value -> {ok, Equivalent};
-        _ -> {error, ?NOT_ALLOWED_VALUE}
-    end;
-eq(Value, Equivalent, _) when is_binary(Value) and is_integer(Equivalent) ->
-    case integer_to_binary(Equivalent) of
-        Value -> {ok, Equivalent};
-        _ -> {error, ?NOT_ALLOWED_VALUE}
-    end;
-eq(Value, Equivalent, _) when is_binary(Value) and is_binary(Equivalent) ->
-    {error, ?NOT_ALLOWED_VALUE};
-eq(Value, Equivalent, _) when is_float(Value) and is_float(Equivalent) ->
-    {error, ?NOT_ALLOWED_VALUE};
-eq(Value, Equivalent, _) when is_integer(Value) and is_integer(Equivalent) ->
-    {error, ?NOT_ALLOWED_VALUE};
-eq(_Value, _Args, _) ->
-    {error, ?FORMAT_ERROR}.
+    eq(Value, Equivalent, AllData);
+eq(Value, Equivalent, _) ->
+    case olifer:to_binary(Value) of
+        undefined -> {error, ?FORMAT_ERROR};
+        StrValue ->
+            case olifer:to_binary(Equivalent) of
+                StrValue -> {ok, Equivalent};
+                _ -> {error, ?NOT_ALLOWED_VALUE}
+            end
+    end.
 
 one_of(<<>> = Value, _Args, _) ->
     {ok, Value};
-one_of(Value, Args, _) when is_binary(Value) ->
-    ArgsList = lists:flatten(Args),
-    case one_of_impl(Value, ArgsList) of
-        {ok, Value} -> {ok, Value};
-        {error, _} -> one_of_impl(binary_to_number(Value), ArgsList)
-    end;
-one_of(Value, Args, _Other) when is_float(Value) ->
-    ArgsList = lists:flatten(Args),
-    case one_of_impl(Value, ArgsList) of
-        {ok, Value} -> {ok, Value};
-        {error, _} -> one_of_impl(float_to_binary(Value), ArgsList)
-    end;
-one_of(Value, Args, _Other) when is_integer(Value) ->
-    ArgsList = lists:flatten(Args),
-    case one_of_impl(Value, ArgsList) of
-        {ok, Value} -> {ok, Value};
-        {error, _} -> one_of_impl(integer_to_binary(Value), ArgsList)
-    end;
-one_of(Value, Args, _) when is_boolean(Value) ->
-    case lists:member(Value, lists:flatten(Args)) of
-        true -> {ok, Value};
-        false -> {error, ?NOT_ALLOWED_VALUE}
-    end;
-one_of(_Value, _Args, _) ->
-    {error, ?FORMAT_ERROR}.
+one_of(Value, [AllowedValues], AllData) when is_list(AllowedValues) ->
+    one_of(Value, AllowedValues, AllData);
+one_of(Value, AllowedValue, AllData) when not is_list(AllowedValue) ->
+    one_of(Value, [AllowedValue], AllData);
+one_of(Value, AllowedValues, _) ->
+    case olifer:to_binary(Value) of
+        undefined -> {error, ?FORMAT_ERROR};
+        StrValue -> one_of_impl(StrValue, AllowedValues)
+    end.
 
 max_length(<<>> = Value, _Args, _) ->
     {ok, Value};
@@ -100,7 +65,7 @@ max_length(Value, MaxLength, _) when is_binary(Value) ->
         false -> {ok, Value}
     end;
 max_length(Value, MaxLength, AllData) when is_float(Value) ->
-    max_length(float_to_binary(Value), MaxLength, AllData);
+    max_length(olifer:to_binary(Value), MaxLength, AllData);
 max_length(Value, MaxLength, AllData) when is_integer(Value) ->
     max_length(integer_to_binary(Value), MaxLength, AllData);
 max_length(_Value, _Args, _) ->
@@ -116,7 +81,7 @@ min_length(Value, MinLength, _) when is_binary(Value) ->
         false -> {ok, Value}
     end;
 min_length(Value, MaxLength, AllData) when is_float(Value) ->
-    min_length(float_to_binary(Value), MaxLength, AllData);
+    min_length(olifer:to_binary(Value), MaxLength, AllData);
 min_length(Value, MaxLength, AllData) when is_integer(Value) ->
     min_length(integer_to_binary(Value), MaxLength, AllData);
 min_length(_Value, _Args, _) ->
@@ -134,7 +99,7 @@ length_between(Value, [MinLength, MaxLength], _) when is_binary(Value) ->
         true -> {ok, Value}
     end;
 length_between(Value, [MinLength, MaxLength], AllData) when is_float(Value) ->
-    length_between(float_to_binary(Value), [MinLength, MaxLength], AllData);
+    length_between(olifer:to_binary(Value), [MinLength, MaxLength], AllData);
 length_between(Value, [MinLength, MaxLength], AllData) when is_integer(Value) ->
     length_between(integer_to_binary(Value), [MinLength, MaxLength], AllData);
 length_between(_Value, _Args, _) ->
@@ -152,7 +117,7 @@ length_equal(Value, Length, _) when is_binary(Value) ->
         ValueLength == Length -> {ok, Value}
     end;
 length_equal(Value, Length, AllData) when is_float(Value) ->
-    length_equal(float_to_binary(Value), Length, AllData);
+    length_equal(olifer:to_binary(Value), Length, AllData);
 length_equal(Value, Length, AllData) when is_integer(Value) ->
     length_equal(integer_to_binary(Value), Length, AllData);
 length_equal(_Value, _Args, _) ->
@@ -165,13 +130,13 @@ like(Value, [Pattern], AllData) ->
 like(Value, [Pattern, <<"i">>], _) when is_binary(Value) ->
     like_impl(Value, Pattern, [unicode, caseless]);
 like(Value, [Pattern, <<"i">>], _) when is_float(Value) ->
-    like_impl(float_to_binary(Value), Pattern, [unicode, caseless]);
+    like_impl(olifer:to_binary(Value), Pattern, [unicode, caseless]);
 like(Value, [Pattern, <<"i">>], _) when is_integer(Value) ->
     like_impl(integer_to_binary(Value), Pattern, [unicode, caseless]);
 like(Value, Pattern, _) when is_binary(Value) ->
     like_impl(Value, Pattern, [unicode]);
 like(Value, Pattern, _) when is_float(Value) ->
-    like_impl(float_to_binary(Value), Pattern, [unicode]);
+    like_impl(olifer:to_binary(Value), Pattern, [unicode]);
 like(Value, Pattern, _) when is_integer(Value) ->
     like_impl(integer_to_binary(Value), Pattern, [unicode]);
 like(_Value, _Args, _) ->
@@ -188,22 +153,10 @@ like_impl(Value, Pattern, Opts) ->
         {error, _} -> {error, ?FORMAT_ERROR}
     end.
 
-one_of_impl(Value, ArgsList) ->
-    case lists:member(Value, ArgsList) of
-        true -> {ok, Value};
-        false -> {error, ?NOT_ALLOWED_VALUE}
-    end.
-
-binary_to_number(BinValue) ->
-    try
-        binary_to_integer(BinValue)
-    catch
-        _:_ ->
-            try
-                binary_to_float(BinValue)
-            catch
-                _:_ ->
-                    BinValue
-            end
-
+one_of_impl(_StrValue, []) ->
+    {error, ?NOT_ALLOWED_VALUE};
+one_of_impl(StrValue, [AllowedValue | Rest]) ->
+    case olifer:to_binary(AllowedValue) of
+        StrValue -> {ok, AllowedValue};
+        _ -> one_of_impl(StrValue, Rest)
     end.

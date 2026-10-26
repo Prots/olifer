@@ -1,0 +1,21 @@
+[
+  {
+    "name": "required_email",
+    "rules": [
+      "required",
+      "email"
+    ]
+  },
+  {
+    "name": "default_country",
+    "rules": {
+      "default": "UA"
+    }
+  },
+  {
+    "name": "default_empty",
+    "rules": {
+      "default": ""
+    }
+  }
+]

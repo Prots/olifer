@@ -1,0 +1,5 @@
+{
+  "email": "required_email",
+  "country": "default_country",
+  "note": "default_empty"
+}
