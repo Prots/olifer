@@ -10,6 +10,7 @@
 -export([start/0, stop/0]).
 -export([validate_data/2]).
 -export([get_value/2]).
+-export([to_binary/1]).
 
 %% LIVR API
 validate([], []) ->
@@ -44,6 +45,19 @@ get_value(Key, List, Default) ->
         _ -> Default
     end.
 
+%% Primitive value (string, number or boolean) as a string, like JavaScript's String() does it.
+%% Returns undefined for other values (objects, lists, null).
+to_binary(Value) when is_binary(Value) ->
+    Value;
+to_binary(Value) when is_integer(Value) ->
+    integer_to_binary(Value);
+to_binary(Value) when is_float(Value) ->
+    list_to_binary(float_to_string(Value));
+to_binary(Value) when is_boolean(Value) ->
+    atom_to_binary(Value, utf8);
+to_binary(_Value) ->
+    undefined.
+
 start() ->
     start(?MODULE).
 
@@ -57,6 +71,47 @@ validate_data(Data, Rules) ->
     [#field{name = Data, input = Data, rules = Rules, output = ?FORMAT_ERROR, errors = ?FORMAT_ERROR}].
 
 %% INTERNAL
+%% Number.prototype.toString() of JavaScript: the shortest digits that give the same float,
+%% with an exponent below 1e-6 and from 1e21: 1.2 -> "1.2", 1.0e21 -> "1e+21", 1.0e-7 -> "1e-7"
+float_to_string(Value) when Value == 0 ->
+    "0";
+float_to_string(Value) ->
+    {Mantissa, Exp} = case string:split(io_lib_format:fwrite_g(abs(Value)), "e") of
+        [M, E] -> {M, list_to_integer(E)};
+        [M] -> {M, 0}
+    end,
+    [Int, Frac] = string:split(Mantissa, "."),
+    %% Value = 0.Digits * 10^Point
+    {Digits, Point} = strip_leading_zeros(Int ++ Frac, length(Int) + Exp),
+    Sign = case Value < 0 of
+        true -> "-";
+        false -> ""
+    end,
+    Sign ++ format_digits(string:trim(Digits, trailing, "0"), Point).
+
+strip_leading_zeros([$0 | Digits], Point) ->
+    strip_leading_zeros(Digits, Point - 1);
+strip_leading_zeros(Digits, Point) ->
+    {Digits, Point}.
+
+format_digits(Digits, Point) when length(Digits) =< Point, Point =< 21 ->
+    Digits ++ lists:duplicate(Point - length(Digits), $0);
+format_digits(Digits, Point) when 0 < Point, Point =< 21 ->
+    {Int, Frac} = lists:split(Point, Digits),
+    Int ++ "." ++ Frac;
+format_digits(Digits, Point) when -6 < Point, Point =< 0 ->
+    "0." ++ lists:duplicate(-Point, $0) ++ Digits;
+format_digits([First | Rest], Point) ->
+    Mantissa = case Rest of
+        [] -> [First];
+        _ -> [First, $. | Rest]
+    end,
+    ExpSign = case Point > 0 of
+        true -> "+";
+        false -> "-"
+    end,
+    Mantissa ++ "e" ++ ExpSign ++ integer_to_list(abs(Point - 1)).
+
 return_result([], AccOk, []) ->
     {ok, AccOk};
 return_result([], _, AccErr) ->

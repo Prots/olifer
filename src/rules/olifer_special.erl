@@ -61,7 +61,7 @@ equal_to_field(Value, [FieldName], AllData) when is_binary(Value); is_integer(Va
     equal_to_field(Value, FieldName, AllData);
 equal_to_field(Value, FieldName, AllData) when is_binary(Value); is_integer(Value); is_float(Value) ->
     FieldValue = olifer:get_value(FieldName, AllData),
-    case Value =:= FieldValue of
+    case olifer:to_binary(Value) =:= olifer:to_binary(FieldValue) of
         true -> {ok, Value};
         false -> {error, ?FIELDS_NOT_EQUAL}
     end;

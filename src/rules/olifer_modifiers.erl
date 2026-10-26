@@ -52,14 +52,18 @@ default(Value, _Default, _AllData) ->
     {filter, Value}.
 
 %% INTERNAL
-%% Strings are modified, other values (and binaries that are not valid UTF-8) are left as they are
-modify_string(Value, Modify) when is_binary(Value) ->
-    case unicode:characters_to_binary(Value) of
-        Value -> {filter, Modify(Value)};
-        _ -> {filter, Value}
-    end;
-modify_string(Value, _Modify) ->
-    {filter, Value}.
+%% Strings, numbers and booleans are modified as strings, other values
+%% (and binaries that are not valid UTF-8) are left as they are
+modify_string(Value, Modify) ->
+    case olifer:to_binary(Value) of
+        undefined ->
+            {filter, Value};
+        String ->
+            case unicode:characters_to_binary(String) of
+                String -> {filter, Modify(String)};
+                _ -> {filter, Value}
+            end
+    end.
 
 remove_impl(Value, <<>>) ->
     {filter, Value};
