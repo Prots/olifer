@@ -116,6 +116,7 @@ test_border_positive(_Config) ->
     {ok, ListDir} = file:list_dir(WholePath),
     [begin
          {Rules, Input, Output} = get_working_data(border_suite_positive, TestDir, WholePath),
+         ok = register_border_aliases(WholePath ++ TestDir),
          {_, PartRes} = Result = olifer:validate(Input, Rules),
          ct:print("Test name:~p~nRules: ~p,~nInput: ~p,~nOutput: ~p,~nResult: ~p~n",
              [TestDir, Rules, Input, Output, PartRes]),
@@ -127,11 +128,19 @@ test_border_negative(_Config) ->
     {ok, ListDir} = file:list_dir(WholePath),
     [begin
          {Rules, Input, Errors} = get_working_data(border_suite_negative, TestDir, WholePath),
+         ok = register_border_aliases(WholePath ++ TestDir),
          ct:print("Test name:~p~nRules: ~p,~nInput: ~p,~nErrors: ~p,~n", [TestDir, Rules, Input, Errors]),
          ?assertEqual(unordered({errors, Errors}), unordered(olifer:validate(Input, Rules)))
      end || TestDir <- lists:sort(ListDir)].
 
 %% INTERNAL
+%% aliases.json of a border test is optional
+register_border_aliases(DataDir) ->
+    case file:read_file(DataDir ++ "/aliases.json") of
+        {ok, Aliases} -> olifer:register_aliased_rule(decode(Aliases));
+        {error, enoent} -> ok
+    end.
+
 %% JSON objects are unordered: compare them as maps
 unordered({Type, Data}) ->
     {Type, unordered(Data)};

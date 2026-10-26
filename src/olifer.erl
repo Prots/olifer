@@ -224,15 +224,21 @@ apply_aliased_rules(Field, RuleName, AllData) ->
             undefined;
         {RuleName, Rules, undefined} ->
             case apply_rules(Field#field{rules = Rules, errors = []}, AllData) of
-                #field{errors = []} = NewField -> {ok, NewField#field.output};
+                #field{errors = []} = NewField -> alias_result(Field, NewField);
                 NewField -> {error, NewField#field.errors}
             end;
         {RuleName, Rules, Error} ->
             case apply_rules(Field#field{rules = Rules, errors = []}, AllData) of
-                #field{errors = []} = NewField -> {ok, NewField#field.output};
+                #field{errors = []} = NewField -> alias_result(Field, NewField);
                 _ -> {error, Error}
             end
     end.
+
+%% A missing field gets a value when a rule of the alias (like "default") gives it one
+alias_result(#field{missing = true}, #field{missing = false, output = Output}) ->
+    {filter, Output};
+alias_result(_Field, NewField) ->
+    {ok, NewField#field.output}.
 
 apply_registered_rules(Field, RuleName, Args) ->
     case lookup_rules(RuleName) of
@@ -298,34 +304,33 @@ rule_to_atom(<<"default">>) -> {olifer_modifiers, default};
 
 rule_to_atom(_) -> undefined.
 
+%% The rules of a missing field in their order: the rules that can fail or give it a value
+%% (?SPEC_RULES) and aliases. Other rules skip a missing value.
 has_spec_rule([FieldRules]) when is_list(FieldRules) ->
     has_spec_rule(FieldRules);
 has_spec_rule(FieldRules) ->
-    has_spec_rule(FieldRules, ?SPEC_RULES, []).
-
-has_spec_rule(_FieldRules, [], []) ->
-    false;
-has_spec_rule(_FieldRules, [], Acc) ->
-    Acc;
-has_spec_rule(FieldRules, [Type | RestTypes], Acc) ->
-    case has_rule(FieldRules, Type) of
-        {true, FieldRule} -> has_spec_rule(FieldRules, RestTypes, [FieldRule|Acc]);
-        _ -> has_spec_rule(FieldRules, RestTypes, Acc)
+    case [Rule || Rule <- rules_list(FieldRules), is_spec_rule(rule_name(Rule))] of
+        [] -> false;
+        SpecRules -> SpecRules
     end.
 
-has_rule(Type, Type) ->
-    {true, Type};
-has_rule([], _Type) ->
-    false;
-has_rule([Type | _Rest], Type) ->
-    {true, Type};
-has_rule([{Type, _} = Rule| _Rest], Type) ->
-    {true, Rule};
-has_rule([[{Type, _} = Rule] | _Rest], Type) ->
-    {true, Rule};
-has_rule([_ | Rest], Type) ->
-    has_rule(Rest, Type);
-has_rule(_, _) ->
+%% A list of rules or a rule with arguments ([{Name, Args}]), or a rule name
+rules_list(FieldRules) when is_list(FieldRules) ->
+    FieldRules;
+rules_list(FieldRule) ->
+    [FieldRule].
+
+rule_name({Name, _Args}) ->
+    Name;
+rule_name([{Name, _Args}]) ->
+    Name;
+rule_name(Name) ->
+    Name.
+
+is_spec_rule(Name) when is_binary(Name) ->
+    lists:member(Name, ?SPEC_RULES)
+        orelse (rule_to_atom(Name) =:= undefined andalso lookup_alias(Name) =/= undefined);
+is_spec_rule(_Name) ->
     false.
 
 start(AppName) ->

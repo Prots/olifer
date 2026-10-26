@@ -1,0 +1,5 @@
+{
+  "email": "REQUIRED",
+  "name": "REQUIRED",
+  "id": "NOT_POSITIVE_INTEGER"
+}
