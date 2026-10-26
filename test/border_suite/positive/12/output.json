@@ -1,0 +1,9 @@
+{
+  "settings": {
+    "theme": "dark"
+  },
+  "limits": {
+    "min": 1,
+    "max": 10
+  }
+}

@@ -40,10 +40,14 @@ leave_only(Value, Pattern, _)  when is_binary(Value), is_binary(Pattern)->
 leave_only(Value, _, _) ->
     {filter, Value}.
 
+default(null, Default, AllData) ->
+    default(<<>>, Default, AllData);
 default(<<>>, [[]], _AllData) ->
     {filter, []};
 default(<<>>, [{}], _AllData) ->
     {filter, [{}]};
+default(<<>>, [{_, _}] = Default, _AllData) ->
+    {filter, Default};
 default(<<>>, [Default], _AllData) ->
     {filter, Default};
 default(<<>>, Default, _AllData) ->

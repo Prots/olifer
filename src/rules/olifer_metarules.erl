@@ -14,7 +14,7 @@
 
 %% API
 
-variable_object(<<>> = Value, [], _) ->
+variable_object(<<>> = Value, _Args, _) ->
     {ok, Value};
 variable_object(Values, Args, _AllData) when is_list(Values) ->
     {DataPropList, RulesPropList} = pred_processing(variable_object, Values, Args),
@@ -71,7 +71,7 @@ list_of_different_objects(_Value, _Args, _) ->
 pred_processing(variable_object, Values, [ObjFieldName, ObjSpecs]) ->
     case lists:keyfind(ObjFieldName, 1, Values) of
         false ->
-            {[], []};
+            {ObjFieldName, []};
         {ObjFieldName, ObjType} ->
             case lists:keyfind(ObjType, 1, ObjSpecs) of
                 false -> {ObjFieldName, []};
