@@ -9,7 +9,8 @@
     variable_object/3,
     list_of/3,
     list_of_objects/3,
-    list_of_different_objects/3
+    list_of_different_objects/3,
+    'or'/3
 ]).
 
 %% API
@@ -67,7 +68,24 @@ list_of_different_objects(Values, Args, _) when is_list(Values) ->
 list_of_different_objects(_Value, _Args, _) ->
     {error, ?FORMAT_ERROR}.
 
+'or'(Value, RuleSets, _AllData) when is_list(RuleSets) ->
+    or_impl(Value, RuleSets, ?FORMAT_ERROR);
+'or'(Value, RuleSet, AllData) when is_binary(RuleSet) ->
+    'or'(Value, [RuleSet], AllData);
+'or'(_Value, _Args, _) ->
+    {error, ?FORMAT_ERROR}.
+
 %% INTERNAL
+%% Applies the sets of rules one after another until one of them succeeds, returns the last error
+or_impl(_Value, [], LastError) ->
+    {error, LastError};
+or_impl(Value, [Rules | Rest], _LastError) ->
+    case olifer:validate_value(Value, Rules) of
+        {ok, Output, true} -> {filter, Output};
+        {ok, _Output, false} -> {ok, Value};
+        {error, Error} -> or_impl(Value, Rest, Error)
+    end.
+
 pred_processing(variable_object, Values, [ObjFieldName, ObjSpecs]) ->
     case lists:keyfind(ObjFieldName, 1, Values) of
         false ->

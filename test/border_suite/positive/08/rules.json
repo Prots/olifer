@@ -1,0 +1,7 @@
+{
+  "empty_string": { "default": "" },
+  "zero": { "default": 0 },
+  "modified_empty_string": [{ "default": "" }, "to_uc"],
+  "or_empty_string": { "or": [[{ "default": "" }], "email"] },
+  "missing_or": { "or": ["email", "positive_integer"] }
+}

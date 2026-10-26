@@ -7,7 +7,7 @@
 -define(LIVR_TEST_PATH, "deps/LIVR/test_suite/").
 -define(CT_TEST_PATH, "test/register_suite/").
 
--define(TEST_EXCEPTION_LIST, ["29-or"]).
+-define(TEST_EXCEPTION_LIST, []).
 
 -export([all/0]).
 -export([test_positive/1, test_negative/1]).

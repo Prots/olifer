@@ -9,6 +9,7 @@
 %% FOR INTERNAL USAGE
 -export([start/0, stop/0]).
 -export([validate_data/2]).
+-export([validate_value/2]).
 -export([get_value/2]).
 -export([to_binary/1]).
 
@@ -66,9 +67,19 @@ stop() ->
 
 validate_data(DataPropList, RulesPropList) when is_list(DataPropList), is_list(RulesPropList) ->
     ListOfFields = prepare(DataPropList, RulesPropList),
-    lists:reverse([apply_rules(Field, DataPropList) || Field <- ListOfFields]);
+    lists:reverse([Field || Field <- [apply_rules(F, DataPropList) || F <- ListOfFields],
+                            not is_still_missing(Field)]);
 validate_data(Data, Rules) ->
     [#field{name = Data, input = Data, rules = Rules, output = ?FORMAT_ERROR, errors = ?FORMAT_ERROR}].
+
+%% Applies the rules to one value, for meta rules like "or".
+%% HasValue tells whether a rule gave the value an output (a modifier like "default" always does).
+validate_value(Value, Rules) ->
+    Field = #field{name = value, input = Value, rules = Rules, output = Value, errors = [], missing = true},
+    case apply_rules(Field, [{value, Value}]) of
+        #field{errors = [], output = Output, missing = Missing} -> {ok, Output, not Missing};
+        #field{errors = Errors} -> {error, Errors}
+    end.
 
 %% INTERNAL
 %% Number.prototype.toString() of JavaScript: the shortest digits that give the same float,
@@ -121,6 +132,13 @@ return_result([#field{errors = []} = Field | Rest], AccOk, AccErr) ->
 return_result([Field | Rest], AccOk, AccErr) ->
     return_result(Rest, AccOk, [{Field#field.name, Field#field.errors} | AccErr]).
 
+%% A missing field (it is validated when it has rules like "required" or "or")
+%% stays missing, unless a rule (like "default") gives it a value
+is_still_missing(#field{errors = [], missing = true}) ->
+    true;
+is_still_missing(_Field) ->
+    false.
+
 register_aliases([]) ->
     ok;
 register_aliases([Alias | Rest]) ->
@@ -156,7 +174,7 @@ prepare(DataPropList, AllData, [{FieldName, FieldRules} | RestRules], Acc) ->
                 false ->
                     prepare(DataPropList, AllData, RestRules, Acc);
                 SpecRulesList ->
-                    prepare(DataPropList, AllData, RestRules, [#field{name = FieldName, input = <<>>, rules = SpecRulesList} | Acc])
+                    prepare(DataPropList, AllData, RestRules, [#field{name = FieldName, input = <<>>, rules = SpecRulesList, missing = true} | Acc])
             end;
         {FieldName, FieldData} ->
             prepare(DataPropList, AllData, RestRules, [#field{name = FieldName, input = FieldData, rules = FieldRules} | Acc])
@@ -165,16 +183,19 @@ prepare(DataPropList, AllData, [{FieldName, FieldRules} | RestRules], Acc) ->
 apply_rules(#field{rules = []} = Field, _AllData) ->
     Field;
 apply_rules(#field{rules = {Rule, Args}} = Field, AllData) ->
-    {NewInp, Output, Errors} = apply_one_rule(Field, {Rule, Args}, AllData),
-    apply_rules(Field#field{input = NewInp, rules = [], output = Output, errors = Errors}, AllData);
+    {NewInp, Output, Errors, HasValue} = apply_one_rule(Field, {Rule, Args}, AllData),
+    apply_rules(Field#field{input = NewInp, rules = [], output = Output, errors = Errors,
+                            missing = Field#field.missing andalso not HasValue}, AllData);
 apply_rules(#field{rules = Rule} = Field, AllData) when is_binary(Rule) ->
-    {NewInp, Output, Errors} = apply_one_rule(Field, {Rule, []}, AllData),
-    apply_rules(Field#field{input = NewInp, rules = [], output = Output, errors = Errors}, AllData);
+    {NewInp, Output, Errors, HasValue} = apply_one_rule(Field, {Rule, []}, AllData),
+    apply_rules(Field#field{input = NewInp, rules = [], output = Output, errors = Errors,
+                            missing = Field#field.missing andalso not HasValue}, AllData);
 apply_rules(#field{rules = [Rule | Rest]} = Field, AllData) ->
     case apply_one_rule(Field, Rule, AllData) of
-        {NewInp, Output, []} ->
-            apply_rules(Field#field{rules = Rest, input = NewInp, output = Output, errors = []}, AllData);
-        {_, Error, Error} -> apply_rules(Field#field{rules = [], output = Error, errors = Error}, AllData)
+        {NewInp, Output, [], HasValue} ->
+            apply_rules(Field#field{rules = Rest, input = NewInp, output = Output, errors = [],
+                                    missing = Field#field.missing andalso not HasValue}, AllData);
+        {_, Error, Error, _} -> apply_rules(Field#field{rules = [], output = Error, errors = Error}, AllData)
     end.
 
 apply_one_rule(Field, Rule, AllData) when is_binary(Rule) ->
@@ -221,14 +242,16 @@ apply_registered_rules(Field, RuleName, Args) ->
             erlang:apply(Module, Function, [Field#field.input, Args])
     end.
 
+%% {NewInput, Output, Errors, HasValue}: HasValue tells whether the rule gave the field a value
+%% (a modifier always does, a validator only when it changes the value)
 process_result({undefined, RuleName}, Input) ->
-    {Input, Input, <<"Rule '", RuleName/binary, "' not_registered">>};
+    {Input, Input, <<"Rule '", RuleName/binary, "' not_registered">>, false};
 process_result({filter, Output}, _) ->
-    {Output, Output, []};
+    {Output, Output, [], true};
 process_result({ok, Output}, Input) ->
-    {Input, Output, []};
+    {Input, Output, [], Output =/= Input};
 process_result({error, Error}, Input) ->
-    {Input, Error, Error};
+    {Input, Error, Error, false};
 process_result(Unexpected, Input) ->
     ct:print("Unexpected: ~p~nInput:~p~n", [Unexpected, Input]).
 
