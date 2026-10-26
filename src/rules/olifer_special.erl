@@ -14,10 +14,14 @@
 email(<<>> = Value, _Args, _) ->
     {ok, Value};
 email(Value, [], _) when is_binary(Value) ->
-    Pattern = "^((?:(?:[^\"@\\.\s]+\\.?)|(?:\\.\"[^\"\s]+\"\\.))*(?:(?:\\.?\"[^\"\s]+\")|(?:[a-zA-Z0-9\\-_]+)))@[a-z0-9\\.\\-\\[\\]]+$",
-    case re:run(Value, Pattern, [caseless, anchored]) of
-        nomatch -> {error, ?WRONG_EMAIL};
-        _ -> {ok, Value}
+    %% The regular expression of the reference implementation: one "@" only, no "_" in the domain,
+    %% no whitespace (and no trailing newline: dollar_endonly)
+    Pattern = "^(?:[^<>()\\[\\]\\\\.,;:" ?WHITESPACE "@\"]+(?:\\.[^<>()\\[\\]\\\\.,;:" ?WHITESPACE "@\"]+)*"
+              "|\"[^@\\n\\r\\x{2028}\\x{2029}]+\")"
+              "@(?:\\[[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\]|(?:[a-zA-Z\\-0-9]+\\.)+[a-zA-Z]{2,})$",
+    case matches(Value, Pattern, []) of
+        false -> {error, ?WRONG_EMAIL};
+        true -> {ok, Value}
     end;
 email(_, _, _) ->
     {error, ?FORMAT_ERROR}.
@@ -48,9 +52,9 @@ url(_, _, _) ->
 iso_date(<<>> = Value, _Args, _) ->
     {ok, Value};
 iso_date(Value, [], _) when is_binary(Value) ->
-    case binary:split(Value, <<"-">>, [global]) of
-        [_, _, _] = DateBin -> check_date(DateBin, Value);
-        _ -> {error, ?WRONG_DATE}
+    case re:run(Value, "^\\d{4}-\\d{2}-\\d{2}$", [dollar_endonly, {capture, none}]) of
+        match -> check_date(binary:split(Value, <<"-">>, [global]), Value);
+        nomatch -> {error, ?WRONG_DATE}
     end;
 iso_date(_, _, _) ->
     {error, ?FORMAT_ERROR}.
