@@ -143,8 +143,10 @@ like(_Value, _Args, _) ->
     {error, ?FORMAT_ERROR}.
 
 %% INTERNAL
+%% dollar_endonly: $ matches only at the end of the value, as in JavaScript,
+%% not before a trailing newline
 like_impl(Value, Pattern, Opts) ->
-    case re:compile(Pattern, Opts) of
+    case re:compile(Pattern, [dollar_endonly | Opts]) of
         {ok, MP} ->
             case re:run(Value, MP) of
                 nomatch -> {error, ?WRONG_FORMAT};
