@@ -12,7 +12,12 @@
     min_length/3,
     length_between/3,
     length_equal/3,
-    like/3
+    like/3,
+    not_one_of/3,
+    digits/3,
+    starts_with/3,
+    ends_with/3,
+    contains/3
 ]).
 
 %% API
@@ -142,7 +147,60 @@ like(Value, Pattern, _) when is_integer(Value) ->
 like(_Value, _Args, _) ->
     {error, ?FORMAT_ERROR}.
 
+%% The values are compared as strings: 1 equals "1"
+not_one_of(Value, Args, _) ->
+    check_string_form(Value, fun(String) ->
+        case lists:member(String, [olifer:to_binary(Arg) || Arg <- olifer:args(Args)]) of
+            true -> {error, ?NOT_ALLOWED_VALUE};
+            false -> {ok, Value}
+        end
+    end).
+
+%% One or more ASCII digits, leading zeros are kept: "007" -> "007", 7 -> "7"
+digits(Value, _Args, _) ->
+    check_string_form(Value, fun(String) ->
+        case re:run(String, "^[0-9]+$", [dollar_endonly, {capture, none}]) of
+            match -> output(Value, String);
+            nomatch -> {error, ?NOT_DIGITS}
+        end
+    end).
+
+starts_with(Value, Args, _) ->
+    check_affix(Value, Args, fun(String, Prefix) ->
+        binary:longest_common_prefix([String, Prefix]) =:= byte_size(Prefix)
+    end).
+
+ends_with(Value, Args, _) ->
+    check_affix(Value, Args, fun(String, Suffix) ->
+        binary:longest_common_suffix([String, Suffix]) =:= byte_size(Suffix)
+    end).
+
+contains(Value, Args, _) ->
+    check_affix(Value, Args, fun(String, Part) -> binary:match(String, Part) =/= nomatch end).
+
 %% INTERNAL
+%% Empty values pass, a string, a number or a boolean is checked as a string
+check_string_form(Value, _Check) when Value =:= <<>>; Value =:= null ->
+    {ok, Value};
+check_string_form(Value, Check) ->
+    case olifer:to_binary(Value) of
+        undefined -> {error, ?FORMAT_ERROR};
+        String -> Check(String)
+    end.
+
+check_affix(Value, Args, IsMatch) ->
+    check_string_form(Value, fun(String) ->
+        Affixes = [olifer_schema:string_arg(Arg) || Arg <- olifer:args(Args)],
+        case lists:any(fun(Affix) -> IsMatch(String, Affix) end, Affixes) of
+            true -> output(Value, String);
+            false -> {error, ?WRONG_FORMAT}
+        end
+    end).
+
+%% The string form is the output, and the input of the next rule
+output(Value, Value) -> {ok, Value};
+output(_Value, String) -> {filter, String}.
+
 %% dollar_endonly: $ matches only at the end of the value, as in JavaScript,
 %% not before a trailing newline
 like_impl(Value, Pattern, Opts) ->

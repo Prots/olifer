@@ -10,7 +10,8 @@
     to_lc/3,
     remove/3,
     leave_only/3,
-    default/3
+    default/3,
+    split/3
 ]).
 
 %% API
@@ -59,6 +60,17 @@ default(<<>>, Default, _AllData) ->
     {filter, Default};
 default(Value, _Default, _AllData) ->
     {filter, Value}.
+
+%% A string, a number or a boolean is split at every separator: "a,,b" -> ["a", "", "b"].
+%% Lists, objects and empty values stay as they are
+split(Value, Args, _) ->
+    case Value =/= <<>> andalso olifer:to_binary(Value) of
+        String when is_binary(String) ->
+            [Separator | _] = olifer:args(Args),
+            {filter, binary:split(String, olifer_schema:string_arg(Separator), [global])};
+        _ ->
+            {ok, Value}
+    end.
 
 %% INTERNAL
 %% Strings, numbers and booleans are modified as strings, other values
