@@ -28,6 +28,9 @@ nested_object(<<>> = Value, _Args, _) ->
     {ok, Value};
 nested_object([] = Value, _Args, _) ->
     {ok, Value};
+%% Arguments after the object are ignored
+nested_object(Value, [[_ | _] = Args | _], AllData) when is_list(Value) ->
+    nested_object(Value, Args, AllData);
 nested_object(Value, Args, _AllData) when is_list(Value) ->
     FieldsList = olifer:validate_data(Value, Args),
     post_processing(nested_object, FieldsList);
@@ -36,7 +39,14 @@ nested_object(_Value, _Args, _) ->
 
 list_of(<<>> = Value, _Args, _) ->
     {ok, Value};
+list_of([{}] = _Object, _Args, _) ->
+    {error, ?FORMAT_ERROR};
+list_of([{_, _} | _] = _Object, _Args, _) ->
+    {error, ?FORMAT_ERROR};
 list_of(Values, [Args], AllData) when is_list(Values) ->
+    list_of(Values, Args, AllData);
+%% [["required", "string"], ...]: arguments after the list of rules are ignored
+list_of(Values, [[Rule | _] = Args | _], AllData) when is_list(Values), not is_tuple(Rule) ->
     list_of(Values, Args, AllData);
 list_of(Values, Args, _) when is_list(Values) ->
     {DataPropList, RulesPropList} = pred_processing(list_of, Values, Args),
@@ -47,7 +57,12 @@ list_of(_Value, _Args, _) ->
 
 list_of_objects(<<>> = Value, _Args, _) ->
     {ok, Value};
-list_of_objects(Values, [Args], AllData) when is_list(Values) ->
+list_of_objects([{}] = _Object, _Args, _) ->
+    {error, ?FORMAT_ERROR};
+list_of_objects([{_, _} | _] = _Object, _Args, _) ->
+    {error, ?FORMAT_ERROR};
+%% Arguments after the object are ignored
+list_of_objects(Values, [Args | _], AllData) when is_list(Values), is_list(Args) ->
     list_of_objects(Values, Args, AllData);
 list_of_objects(Values, Args, _) when is_list(Values) ->
     ListOfObjects = pred_processing(list_of_objects, Values, Args, []),
@@ -58,6 +73,10 @@ list_of_objects(_Value, _Args, _) ->
 
 list_of_different_objects(<<>> = Value, _Args, _) ->
     {ok, Value};
+list_of_different_objects([{}] = _Object, _Args, _) ->
+    {error, ?FORMAT_ERROR};
+list_of_different_objects([{_, _} | _] = _Object, _Args, _) ->
+    {error, ?FORMAT_ERROR};
 list_of_different_objects(Values, [Args], AllData) when is_list(Values) ->
     list_of_different_objects(Values, Args, AllData);
 list_of_different_objects(Values, Args, _) when is_list(Values) ->
@@ -68,8 +87,8 @@ list_of_different_objects(Values, Args, _) when is_list(Values) ->
 list_of_different_objects(_Value, _Args, _) ->
     {error, ?FORMAT_ERROR}.
 
-'or'(Value, RuleSets, _AllData) when is_list(RuleSets) ->
-    or_impl(Value, RuleSets, ?FORMAT_ERROR);
+'or'(Value, RuleSets, AllData) when is_list(RuleSets) ->
+    or_impl(Value, RuleSets, AllData, ?FORMAT_ERROR);
 'or'(Value, RuleSet, AllData) when is_binary(RuleSet) ->
     'or'(Value, [RuleSet], AllData);
 'or'(_Value, _Args, _) ->
@@ -77,16 +96,16 @@ list_of_different_objects(_Value, _Args, _) ->
 
 %% INTERNAL
 %% Applies the sets of rules one after another until one of them succeeds, returns the last error
-or_impl(_Value, [], LastError) ->
+or_impl(_Value, [], _AllData, LastError) ->
     {error, LastError};
-or_impl(Value, [Rules | Rest], _LastError) ->
-    case olifer:validate_value(Value, Rules) of
+or_impl(Value, [Rules | Rest], AllData, _LastError) ->
+    case olifer:validate_value(Value, Rules, AllData) of
         {ok, Output, true} -> {filter, Output};
         {ok, _Output, false} -> {ok, Value};
-        {error, Error} -> or_impl(Value, Rest, Error)
+        {error, Error} -> or_impl(Value, Rest, AllData, Error)
     end.
 
-pred_processing(variable_object, Values, [ObjFieldName, ObjSpecs]) ->
+pred_processing(variable_object, Values, [ObjFieldName, ObjSpecs | _]) ->
     case lists:keyfind(ObjFieldName, 1, Values) of
         false ->
             {ObjFieldName, []};
@@ -115,11 +134,11 @@ pred_processing(list_of_objects, [Value|Rest], Args, Acc) ->
 
 pred_processing(list_of_different_objects, [], _, Acc) ->
     Acc;
-pred_processing(list_of_different_objects, [Object|Rest], [FieldType, TypeRules] = Args, Acc) when is_list(Object) ->
+pred_processing(list_of_different_objects, [Object|Rest], [FieldType, TypeRules | _] = Args, Acc) when is_list(Object) ->
     ObjectType = olifer:get_value(FieldType, Object),
     RulesPropList = olifer:get_value(ObjectType, TypeRules),
     pred_processing(list_of_different_objects, Rest, Args, [{Object, RulesPropList}|Acc]);
-pred_processing(list_of_different_objects, [Object|Rest], [_FieldType, TypeRules] = Args, Acc)  ->
+pred_processing(list_of_different_objects, [Object|Rest], [_FieldType, TypeRules | _] = Args, Acc)  ->
     RulesPropList = olifer:get_value(undefined, TypeRules),
     pred_processing(list_of_different_objects, Rest, Args, [{Object, RulesPropList}|Acc]).
 

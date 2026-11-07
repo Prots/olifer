@@ -54,15 +54,15 @@ decimal(Value, [], _) when is_binary(Value) ->
         {ok, FltValue} -> {ok, FltValue}
     end;
 decimal(Value, [], _) when is_integer(Value) ->
-    {error, ?NOT_DECIMAL};
+    {ok, Value};
 decimal(_Value, _Args, _) ->
     {error, ?FORMAT_ERROR}.
 
 positive_decimal(<<>> = Value, [], _) ->
     {ok, Value};
-positive_decimal(Value, [], _) when is_float(Value), Value > 0 ->
+positive_decimal(Value, [], _) when is_number(Value), Value > 0 ->
     {ok, Value};
-positive_decimal(Value, [], _) when is_float(Value), Value =< 0 ->
+positive_decimal(Value, [], _) when is_number(Value), Value =< 0 ->
     {error, ?NOT_POSITIVE_DECIMAL};
 positive_decimal(Value, [], _) when is_binary(Value) ->
     case binary_to_flt(Value) of
@@ -70,8 +70,6 @@ positive_decimal(Value, [], _) when is_binary(Value) ->
         {ok, FltValue} when FltValue > 0 -> {ok, FltValue};
         _ -> {error, ?NOT_POSITIVE_DECIMAL}
     end;
-positive_decimal(Value, [], _) when is_integer(Value) ->
-    {error, ?NOT_POSITIVE_DECIMAL};
 positive_decimal(_Value, _Args, _) ->
     {error, ?FORMAT_ERROR}.
 

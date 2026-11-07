@@ -9,7 +9,7 @@
 %% FOR INTERNAL USAGE
 -export([start/0, stop/0]).
 -export([validate_data/2]).
--export([validate_value/2]).
+-export([validate_value/2, validate_value/3]).
 -export([get_value/2]).
 -export([to_binary/1]).
 
@@ -75,8 +75,12 @@ validate_data(Data, Rules) ->
 %% Applies the rules to one value, for meta rules like "or".
 %% HasValue tells whether a rule gave the value an output (a modifier like "default" always does).
 validate_value(Value, Rules) ->
+    validate_value(Value, Rules, [{}]).
+
+%% AllData is the containing object: the rules of "or" see the fields next to the validated one
+validate_value(Value, Rules, AllData) ->
     Field = #field{name = value, input = Value, rules = Rules, output = Value, errors = [], missing = true},
-    case apply_rules(Field, [{value, Value}]) of
+    case apply_rules(Field, AllData) of
         #field{errors = [], output = Output, missing = Missing} -> {ok, Output, not Missing};
         #field{errors = Errors} -> {error, Errors}
     end.
@@ -208,6 +212,8 @@ apply_one_rule(Field, {Rule, Args}, AllData) ->
 apply_one_rule(Field, Rule, Args, AllData) ->
     case rule_to_atom(Rule) of
         undefined -> process_result(apply_user_rules(Field, Rule, Args, AllData), Field#field.input);
+        {_Module, _Function} when Field#field.input =:= null, not ?SEES_NULL(Rule) ->
+            process_result({ok, null}, null);
         {Module, Function} ->
             process_result(erlang:apply(Module, Function, [Field#field.input, Args, AllData]), Field#field.input)
     end.

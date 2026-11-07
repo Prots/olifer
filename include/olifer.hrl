@@ -11,6 +11,11 @@
 
 -define(SPEC_RULES, [<<"required">>, <<"not_empty_list">>, <<"default">>, <<"or">>]).
 
+%% The standard rules skip empty values, null too. These rules check null or pass it on
+-define(SEES_NULL(Rule), (Rule =:= <<"required">> orelse Rule =:= <<"not_empty">>
+                          orelse Rule =:= <<"not_empty_list">> orelse Rule =:= <<"default">>
+                          orelse Rule =:= <<"or">>)).
+
 %% BASIC RULES ERRORS
 -define(REQUIRED, <<"REQUIRED">>).
 -define(CANNOT_BE_EMPTY, <<"CANNOT_BE_EMPTY">>).
