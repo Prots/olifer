@@ -5,6 +5,14 @@
 
 -define(NOT_WHITESPACE, "[^" ?WHITESPACE "]").
 
+%% url: the letters of host labels, Latin letters and U+00A1 and above, so Unicode hosts pass
+-define(URL_LETTER, "a-z\\x{A1}-\\x{10FFFF}").
+%% A host label: 1-63 characters, not starting or ending with "-". "." is not in a label, so labels
+%% do not overlap
+-define(URL_LABEL, "[" ?URL_LETTER "0-9](?:[" ?URL_LETTER "0-9-]{0,61}[" ?URL_LETTER "0-9])?").
+%% A port: 0-65535 in 1-5 digits
+-define(URL_PORT, "(?:[0-9]{1,4}|[0-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])").
+
 %% API
 -export([email/3]).
 -export([url/3]).
@@ -37,15 +45,15 @@ email(_, _, _) ->
 url(<<>> = Value, _Args, _) ->
     {ok, Value};
 url(Value, [], _) when is_binary(Value) ->
-    %% The regular expression of the reference implementation: an IPv4 address, localhost or
-    %% a host name with a top level domain, an optional port of 2-5 digits, no whitespace
-    Pattern = "^(?:(?:http|https)://)(?:" ?NOT_WHITESPACE "+(?::" ?NOT_WHITESPACE "*)?@)?"
-              "(?:(?:(?:[1-9]\\d?|1\\d\\d|2[0-1]\\d|22[0-3])(?:\\.(?:1?\\d{1,2}|2[0-4]\\d|25[0-5])){2}"
-              "(?:\\.(?:[0-9]\\d?|1\\d\\d|2[0-4]\\d|25[0-4]))"
-              "|(?:(?:[a-z\\x{A1}-\\x{10FFFF}0-9]-*)*[a-z\\x{A1}-\\x{10FFFF}0-9]+)"
-              "(?:\\.(?:[a-z\\x{A1}-\\x{10FFFF}0-9]-*)*[a-z\\x{A1}-\\x{10FFFF}0-9]+)*"
-              "(?:\\.(?:[a-z\\x{A1}-\\x{10FFFF}]{2,})))\\.?|localhost)"
-              "(?::\\d{2,5})?(?:[/?#]" ?NOT_WHITESPACE "*)?$",
+    %% The regular expression of the reference implementation: optional user info, then an IPv4
+    %% address, host labels with a top-level domain of 2-63 letters or localhost, no dot after
+    %% the host (LIVR 2.5), an optional port of 0-65535, no whitespace
+    Pattern = "^https?://(?:" ?NOT_WHITESPACE "+@)?"
+              "(?:(?:[1-9]\\d?|1\\d\\d|2[0-1]\\d|22[0-3])(?:\\.(?:1?\\d{1,2}|2[0-4]\\d|25[0-5])){2}"
+              "\\.(?:[0-9]\\d?|1\\d\\d|2[0-4]\\d|25[0-4])"
+              "|(?:" ?URL_LABEL "\\.)+[" ?URL_LETTER "]{2,63}"
+              "|localhost)"
+              "(?::" ?URL_PORT ")?(?:[/?#]" ?NOT_WHITESPACE "*)?$",
     IsUrl = case unicode:characters_to_list(Value) of
         Chars when is_list(Chars), length(Chars) < 2083 -> matches(Value, Pattern, [caseless]);
         _ -> false

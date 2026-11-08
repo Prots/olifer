@@ -5,5 +5,9 @@
   "u4": "http://localhost:8080/x",
   "u5": "http://例子.测试",
   "u6": "HTTP://EXAMPLE.COM/{x}",
-  "u7": "http://user:pass@example.com:8080/"
+  "u7": "http://user:pass@example.com:8080/",
+  "u8": "http://localhost:8/",
+  "u9": "https://例子.测试:65535/?q=a.",
+  "u10": "http://жжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжж.рф/",
+  "u11": "http://user@192.0.2.1:0/file."
 }

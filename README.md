@@ -220,8 +220,10 @@ so `{"default": null}` sets `null`. LIVR 2.0 ignored the arguments of `iso_date`
 **Other changes from LIVR 2.0.** As the LIVR specification says, the standard rules skip `null` like
 an empty string, `decimal` accepts integers, `list_of` gives `FORMAT_ERROR` for an object, `or` sees
 the fields next to the validated one (so `equal_to_field` works in it, as in aliases), and the rule
-objects of the metarules ignore extra arguments. An unknown rule is a schema error (see above). A rule
-that you register with the name of a LIVR 2.5 rule replaces it.
+objects of the metarules ignore extra arguments. `url` gives `WRONG_URL` for a dot after the host
+(`https://example.com./`), a host label longer than 63 characters and a port above 65535, and accepts
+one-digit ports (`https://example.com:8`). An unknown rule is a schema error (see above). A rule that
+you register with the name of a LIVR 2.5 rule replaces it.
 
 **The current date.** `today`, `yesterday` and `tomorrow` are the current date in UTC, from
 `olifer_clock:system_time/0`. Tests fix it with [meck](https://github.com/eproxus/meck):
