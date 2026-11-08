@@ -10,7 +10,8 @@
     to_lc/3,
     remove/3,
     leave_only/3,
-    default/3
+    default/3,
+    split/3
 ]).
 
 %% API
@@ -26,6 +27,9 @@ to_lc(Value, [], _) ->
 to_uc(Value, [], _) ->
     modify_string(Value, fun string:uppercase/1).
 
+%% An empty value stays as it is: a missing field stays missing in "or", "when" and aliases
+remove(<<>> = Value, _Args, _) ->
+    {ok, Value};
 remove(Value, [Pattern], AllData) ->
     remove(Value, Pattern, AllData);
 remove(Value, Pattern, _) when is_binary(Value), is_binary(Pattern) ->
@@ -33,6 +37,8 @@ remove(Value, Pattern, _) when is_binary(Value), is_binary(Pattern) ->
 remove(Value, _, _) ->
     {filter, Value}.
 
+leave_only(<<>> = Value, _Args, _) ->
+    {ok, Value};
 leave_only(Value, [Pattern], AllData) ->
     leave_only(Value, Pattern, AllData);
 leave_only(Value, Pattern, _)  when is_binary(Value), is_binary(Pattern)->
@@ -55,9 +61,22 @@ default(<<>>, Default, _AllData) ->
 default(Value, _Default, _AllData) ->
     {filter, Value}.
 
+%% A string, a number or a boolean is split at every separator: "a,,b" -> ["a", "", "b"].
+%% Lists, objects and empty values stay as they are
+split(Value, Args, _) ->
+    case Value =/= <<>> andalso olifer:to_binary(Value) of
+        String when is_binary(String) ->
+            [Separator | _] = olifer:args(Args),
+            {filter, binary:split(String, olifer_schema:string_arg(Separator), [global])};
+        _ ->
+            {ok, Value}
+    end.
+
 %% INTERNAL
 %% Strings, numbers and booleans are modified as strings, other values
 %% (and binaries that are not valid UTF-8) are left as they are
+modify_string(<<>> = Value, _Modify) ->
+    {ok, Value};
 modify_string(Value, Modify) ->
     case olifer:to_binary(Value) of
         undefined ->

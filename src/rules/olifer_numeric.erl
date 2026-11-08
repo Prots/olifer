@@ -11,6 +11,8 @@
 -export([max_number/3]).
 -export([min_number/3]).
 -export([number_between/3]).
+-export([max_decimals/3]).
+-export([decimal_number/1]).
 
 %% API
 integer(<<>> = Value, [], _) ->
@@ -54,15 +56,15 @@ decimal(Value, [], _) when is_binary(Value) ->
         {ok, FltValue} -> {ok, FltValue}
     end;
 decimal(Value, [], _) when is_integer(Value) ->
-    {error, ?NOT_DECIMAL};
+    {ok, Value};
 decimal(_Value, _Args, _) ->
     {error, ?FORMAT_ERROR}.
 
 positive_decimal(<<>> = Value, [], _) ->
     {ok, Value};
-positive_decimal(Value, [], _) when is_float(Value), Value > 0 ->
+positive_decimal(Value, [], _) when is_number(Value), Value > 0 ->
     {ok, Value};
-positive_decimal(Value, [], _) when is_float(Value), Value =< 0 ->
+positive_decimal(Value, [], _) when is_number(Value), Value =< 0 ->
     {error, ?NOT_POSITIVE_DECIMAL};
 positive_decimal(Value, [], _) when is_binary(Value) ->
     case binary_to_flt(Value) of
@@ -70,8 +72,6 @@ positive_decimal(Value, [], _) when is_binary(Value) ->
         {ok, FltValue} when FltValue > 0 -> {ok, FltValue};
         _ -> {error, ?NOT_POSITIVE_DECIMAL}
     end;
-positive_decimal(Value, [], _) when is_integer(Value) ->
-    {error, ?NOT_POSITIVE_DECIMAL};
 positive_decimal(_Value, _Args, _) ->
     {error, ?FORMAT_ERROR}.
 
@@ -141,7 +141,63 @@ number_between(Value, [MinNumber, MaxNumber], _) when is_binary(Value) ->
 number_between(_Value, _Args, _) ->
     {error, ?FORMAT_ERROR}.
 
+%% Digits after the decimal point without the trailing zeros: "1.230" and 1.230 have 2.
+%% The output is a number
+max_decimals(Value, _Args, _) when Value =:= <<>>; Value =:= null ->
+    {ok, Value};
+max_decimals(Value, Args, _) when is_number(Value) ->
+    check_decimals(Value, Value, olifer:to_binary(Value), Args);
+max_decimals(Value, Args, _) when is_binary(Value) ->
+    case decimal_number(Value) of
+        error -> {error, ?NOT_NUMBER};
+        Number -> check_decimals(Value, Number, Value, Args)
+    end;
+max_decimals(Value, _Args, _) when is_boolean(Value) ->
+    {error, ?NOT_NUMBER};
+max_decimals(_Value, _Args, _) ->
+    {error, ?FORMAT_ERROR}.
+
+%% A string in the grammar of the decimal rule, -?[0-9]+(\.[0-9]+)?, as a number that fits
+%% a double (an integer without a fraction), error for other strings
+decimal_number(Value) ->
+    case re:run(Value, "^-?[0-9]+(\\.[0-9]+)?$", [dollar_endonly, {capture, none}]) of
+        nomatch ->
+            error;
+        match ->
+            try
+                Number = case binary:match(Value, <<".">>) of
+                    nomatch -> binary_to_integer(Value);
+                    _ -> binary_to_float(Value)
+                end,
+                _ = float(Number),
+                Number
+            catch
+                error:badarg -> error
+            end
+    end.
+
 %% INTERNAL
+check_decimals(Value, Number, String, Args) ->
+    [MaxDecimals | _] = olifer:args(Args),
+    case decimals(String) > olifer_schema:non_negative_integer(MaxDecimals) of
+        true -> {error, ?TOO_MANY_DECIMALS};
+        false when Number =:= Value -> {ok, Value};
+        false -> {filter, Number}
+    end.
+
+%% The digits after the point of a decimal string, or of the string form of a number:
+%% "1.25" has 2, "1.5e-7" has 8
+decimals(String) ->
+    {Mantissa, Exponent} = case binary:split(String, <<"e">>) of
+        [M, E] -> {M, binary_to_integer(E)};
+        [M] -> {M, 0}
+    end,
+    Fraction = case binary:split(Mantissa, <<".">>) of
+        [_, F] -> string:trim(F, trailing, "0");
+        [_] -> <<>>
+    end,
+    max(0, byte_size(Fraction) - Exponent).
+
 binary_to_int(Value) ->
     try
         IntValue = binary_to_integer(Value),

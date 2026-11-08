@@ -4,5 +4,10 @@
   "u3": "http://256.1.1.1",
   "u4": "http://example.com:123456",
   "u5": "ftp://example.com",
-  "u6": "http://exa_mple.com"
+  "u6": "http://exa_mple.com",
+  "u7": "http://例子.测试./",
+  "u8": "http://localhost:65536",
+  "u9": "http://жжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжж.рф/",
+  "u10": "http://user:pass@example.com.:8080/",
+  "u11": "http://example.com:080000"
 }

@@ -4,6 +4,8 @@ Olifer is lightweight validator supporting Language Independent Validation Rules
 
 See http://livr-spec.org for detailed documentation and list of supported rules.
 
+Olifer supports LIVR 2.5 (see **LIVR 2.5** below), so every LIVR 2.0 schema works too.
+
 [![CI](https://github.com/Prots/olifer/actions/workflows/ci.yml/badge.svg)](https://github.com/Prots/olifer/actions/workflows/ci.yml)
 
 **Features:**
@@ -156,4 +158,78 @@ ok
 
 6> olifer:validate(Input1, Rules).
 {errors, [{<<"password1">>, <<"WEAK_PSSSWORD">>}, {<<"password2">>, <<"WEAK_PSSSWORD">>}]}
+```
+
+#LIVR 2.5
+
+LIVR 2.5 adds rules to LIVR 2.0: see the [specification](https://github.com/koorchik/LIVR/blob/master/drafts/v2.5.md),
+the [changes](https://livr-spec.org/changes.html#v2-5) and the [rules](https://livr-spec.org/validation-rules.html).
+Rules added in LIVR 2.5:
+
+* Types and numbers: `boolean`, `not_one_of`, `max_decimals`
+* Strings: `digits`, `starts_with`, `ends_with`, `contains`
+* Dates and times: `iso_date` with `min` and `max` (`{"iso_date": {"max": "today"}}`), `iso_datetime`, `iso_time`
+* Presence: `required_if`
+* Metarules: `when`, `values`, `keys`, `any`
+* Lists: `list_length`, `unique`
+* Modifiers: `split`
+* Formats: `uuid`, `ip`, `cidr`, `hostname`, `base64`, `hex`, `digest`, `mongo_id`, `hex_color`, `mac`, `e164`, `semver`, `jwt`
+* Checksums: `luhn`, `credit_card`, `iban`
+
+```erl
+1> Rules = [{<<"type">>, [<<"required">>, [{<<"one_of">>, [<<"person">>, <<"company">>]}]]},
+            {<<"vat">>, [{<<"required_if">>, [{<<"type">>, <<"company">>}]}]},
+            {<<"subscribe">>, <<"boolean">>}].
+
+2> olifer:validate([{<<"type">>, <<"company">>}, {<<"subscribe">>, <<"1">>}], Rules).
+{errors, [{<<"vat">>, <<"REQUIRED">>}]}
+
+3> olifer:validate([{<<"type">>, <<"person">>}, {<<"subscribe">>, <<"1">>}], Rules).
+{ok, [{<<"type">>, <<"person">>}, {<<"subscribe">>, true}]}
+```
+
+**Schema errors.** `olifer:check_schema/1` checks the rules without validating data. It returns `ok`
+or `{error, Message}` for an unknown rule (or alias), a wrong argument of a LIVR 2.5 rule, or an empty
+list of rules or `null` in place of rules in `when`, `values` or `keys`. Call it when you build your
+rules, for example in a test.
+```erl
+1> olifer:check_schema([{<<"id">>, [{<<"uuid">>, 4}]}]).
+{error,<<"Rule 'uuid' takes versions \"v1\" to \"v8\"">>}
+
+2> olifer:check_schema([{<<"id">>, <<"not_registered_rule">>}]).
+{error,<<"Rule 'not_registered_rule' is not registered">>}
+```
+
+`olifer:validate/2` checks the rules too, before it validates the data, and raises
+`error({schema_error, Message})` for these errors. An unknown rule is a schema error too: LIVR 2.0
+olifer gave the field error `<<"Rule '...' not_registered">>` for it. A schema is checked once:
+olifer remembers the schemas that passed the check (up to 1000) until a rule or an alias is registered.
+```erl
+3> olifer:validate([{}], [{<<"id">>, [{<<"uuid">>, 4}]}]).
+** exception error: {schema_error,<<"Rule 'uuid' takes versions \"v1\" to \"v8\"">>}
+
+4> olifer:validate([{<<"id">>, 1}], [{<<"id">>, <<"not_registered_rule">>}]).
+** exception error: {schema_error,<<"Rule 'not_registered_rule' is not registered">>}
+```
+
+**`null` as arguments.** `{"rule": null}` is one argument `null`. No LIVR 2.5 rule takes it, so
+`{"boolean": null}` is a schema error. The LIVR 2.0 rules and your own rules get `null` as before,
+so `{"default": null}` sets `null`. LIVR 2.0 ignored the arguments of `iso_date`, so
+`{"iso_date": null}` is `"iso_date"`.
+
+**Other changes from LIVR 2.0.** As the LIVR specification says, the standard rules skip `null` like
+an empty string, `decimal` accepts integers, `list_of` gives `FORMAT_ERROR` for an object, `or` sees
+the fields next to the validated one (so `equal_to_field` works in it, as in aliases), and the rule
+objects of the metarules ignore extra arguments. `url` gives `WRONG_URL` for a dot after the host
+(`https://example.com./`), a host label longer than 63 characters and a port above 65535, and accepts
+one-digit ports (`https://example.com:8`). An unknown rule is a schema error (see above). A rule that
+you register with the name of a LIVR 2.5 rule replaces it.
+
+**The current date.** `today`, `yesterday` and `tomorrow` are the current date in UTC, from
+`olifer_clock:system_time/0`. Tests fix it with [meck](https://github.com/eproxus/meck):
+```erl
+ok = meck:new(olifer_clock),
+ok = meck:expect(olifer_clock, system_time, fun() -> calendar:rfc3339_to_system_time("2026-10-18T12:00:00Z") end),
+...
+meck:unload(olifer_clock).
 ```

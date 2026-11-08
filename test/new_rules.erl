@@ -1,7 +1,7 @@
 -module(new_rules).
 -author("prots.igor@gmail.com").
 
--export([strong_password/2]).
+-export([strong_password/2, echo_args/2]).
 
 strong_password(Value, [MinLength]) ->
     strong_password(Value, MinLength);
@@ -11,3 +11,7 @@ strong_password(Value, _Args) when is_binary(Value) ->
     {error, <<"WEAK_PSSSWORD">>};
 strong_password(_Value, _Args) ->
     {error, <<"FORMAT_ERROR">>}.
+
+%% The arguments as the output
+echo_args(_Value, Args) ->
+    {ok, {args, Args}}.

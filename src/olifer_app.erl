@@ -21,4 +21,5 @@ stop(_State) ->
 init() ->
     _ = ets:new(?RULES_TBL, [public, set, named_table, {read_concurrency, true}]),
     _ = ets:new(?ALIASES_TBL, [public, set, named_table, {read_concurrency, true}]),
+    _ = ets:new(?SCHEMAS_TBL, [public, set, named_table, {read_concurrency, true}]),
     ok.
